@@ -67,6 +67,9 @@ def _run() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # httpx logs each request URL at INFO; the 511 endpoint carries the api_key as a
+    # query param, so keep it at WARNING to avoid leaking the key into logs.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     parser = argparse.ArgumentParser(prog="vestaboard")
     sub = parser.add_subparsers(dest="command", required=True)
 
