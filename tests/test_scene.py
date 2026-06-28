@@ -25,6 +25,16 @@ def test_from_file_parses_regions(tmp_path):
     assert a.width == 2 and a.height == 1
 
 
+def test_hash_is_filler_not_a_region(tmp_path):
+    rows = ["######################"] * 5 + ["##########CCCCC#######"]
+    p = tmp_path / "s.json"
+    p.write_text(json.dumps(rows))
+    scene = Scene.from_file(p)
+    assert set(scene.regions) == {"C"}  # '#' never becomes a region
+    c = scene.regions["C"]
+    assert (c.row0, c.col0, c.col1) == (5, 10, 14)
+
+
 def test_string_row_format_parses_like_lists(tmp_path):
     # The human-readable form: 6 strings of 22 chars.
     rows = ["AAAAA.BBBBBBBBBBBBBBBB"] * ROWS
@@ -41,7 +51,7 @@ def test_bundled_scene_files_load():
     from vestaboard.config import get_settings
 
     settings = get_settings()
-    assert "A" in Scene.from_file(settings.scenes_dir / "clock.json").regions
+    assert set(Scene.from_file(settings.scenes_dir / "clock.json").regions) == {"B", "C"}
     muni = Scene.from_file(settings.scenes_dir / "muni.json")
     assert set(muni.regions) == {"A", "B"}
 

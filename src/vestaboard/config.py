@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     clock_color: int = 69  # white
     muni_color: int = 66  # green
 
+    # Small timezone label shown in the clock's corner (2 chars, e.g. PT/ET).
+    clock_tz_label: str = "PT"
+
     # SF Muni (511.org).
     fiveoneone_api_key: str = ""
     muni_stop_code: str = ""

@@ -1,8 +1,9 @@
 """The Scene: a 6x22 board model with named regions, loaded from JSON.
 
 A scene template is a JSON array of 6 rows. Each cell is a single region label
-(``"A"``-``"Z"``) or ``.`` / a space for unassigned. Same-labeled cells form a
-named region with a bounding box you can stamp content into.
+(``"A"``-``"Z"``) or one of ``.`` / space / ``#`` for filler (unassigned). Using
+``#`` lets you draw borders and gaps that visually read as walls. Same-labeled
+cells form a named region with a bounding box you can stamp content into.
 
 The preferred, human-readable form is **6 strings of 22 characters** — the file
 literally looks like the board::
@@ -31,7 +32,8 @@ from . import COLS, ROWS
 from . import codes as codes_mod
 from .font import Glyph
 
-_UNASSIGNED = {"", ".", " "}
+# Characters that mark a cell as filler/blank (not part of any region).
+_UNASSIGNED = {"", ".", " ", "#"}
 
 
 @dataclass(frozen=True)
