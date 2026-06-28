@@ -3,9 +3,23 @@
 Drive a [Vestaboard](https://www.vestaboard.com/) (6 rows × 22 columns) with three
 composable concepts:
 
-- **Scene** — the board model, defined as a JSON file (`scenes/*.json`): a 6×22 grid
-  where each cell holds an alphabet **region label** (`A`, `B`, …). The loader groups
-  same-labeled cells into named regions you stamp content into.
+- **Scene** — the board model, defined as a JSON file (`scenes/*.json`): **6 strings of
+  22 characters**, so the file reads like the board. Each character is a region **label**
+  (`A`, `B`, …) or `.`/space for unassigned; same-labeled cells form a named region you
+  stamp content into. For example `scenes/muni.json`:
+
+  ```json
+  [
+    "AAAAA.BBBBBBBBBBBBBBBB",
+    "AAAAA.BBBBBBBBBBBBBBBB",
+    "AAAAA.BBBBBBBBBBBBBBBB",
+    "AAAAA.BBBBBBBBBBBBBBBB",
+    "AAAAA.BBBBBBBBBBBBBBBB",
+    "AAAAA.BBBBBBBBBBBBBBBB"
+  ]
+  ```
+
+  region `A` is the left 5 columns (the L badge), `B` is the right 16 (arrivals).
 - **Glyph / Font** — glyphs are defined as a JSON font map (`fonts/*.json`):
   `{"structure": "3x4", "glyphs": {"A": [0,1,0,1,1,1,1,1,1,1,0,1], ...}}`, each value a
   flattened row-major on/off pixel array. Two 3×4 fonts ship (`nanofont3x4`,

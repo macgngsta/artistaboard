@@ -1,12 +1,22 @@
 """The Scene: a 6x22 board model with named regions, loaded from JSON.
 
-A scene template is a JSON 6x22 array of strings; each cell is a single region
-label (``"A"``-``"Z"``) or ``""`` / ``"."`` for unassigned. Same-labeled cells form
-a named region with a bounding box you can stamp content into.
+A scene template is a JSON array of 6 rows. Each cell is a single region label
+(``"A"``-``"Z"``) or ``.`` / a space for unassigned. Same-labeled cells form a
+named region with a bounding box you can stamp content into.
 
-An object form is also accepted::
+The preferred, human-readable form is **6 strings of 22 characters** — the file
+literally looks like the board::
 
-    {"grid": [[...], ...], "labels": {"A": "clock"}}
+    [
+      "AAAAA.BBBBBBBBBBBBBBBB",
+      "AAAAA.BBBBBBBBBBBBBBBB",
+      ... 4 more rows ...
+    ]
+
+A row may also be a list of single-character strings (``["A", "A", ...]``); both
+parse identically. An object form is accepted too::
+
+    {"grid": [...], "labels": {"A": "clock"}}
 
 where ``labels`` gives human-friendly names (the canonical key stays the letter).
 """
@@ -121,8 +131,11 @@ class Scene:
 
 
 def _parse_regions(grid: list[list[str]]) -> dict[str, Region]:
-    if len(grid) != ROWS or any(len(row) != COLS for row in grid):
-        raise ValueError("scene template must be 6x22")
+    if len(grid) != ROWS:
+        raise ValueError(f"scene template must have {ROWS} rows, got {len(grid)}")
+    for r, row in enumerate(grid):
+        if len(row) != COLS:
+            raise ValueError(f"scene row {r} must be {COLS} cells wide, got {len(row)}: {row!r}")
     cells: dict[str, list[tuple[int, int]]] = {}
     for r, row in enumerate(grid):
         for c, label in enumerate(row):

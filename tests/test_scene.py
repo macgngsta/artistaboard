@@ -25,6 +25,34 @@ def test_from_file_parses_regions(tmp_path):
     assert a.width == 2 and a.height == 1
 
 
+def test_string_row_format_parses_like_lists(tmp_path):
+    # The human-readable form: 6 strings of 22 chars.
+    rows = ["AAAAA.BBBBBBBBBBBBBBBB"] * ROWS
+    p = tmp_path / "s.json"
+    p.write_text(json.dumps(rows))
+    scene = Scene.from_file(p)
+    assert set(scene.regions) == {"A", "B"}
+    a, b = scene.regions["A"], scene.regions["B"]
+    assert (a.row0, a.col0, a.row1, a.col1) == (0, 0, 5, 4)
+    assert (b.row0, b.col0, b.row1, b.col1) == (0, 6, 5, 21)
+
+
+def test_bundled_scene_files_load():
+    from vestaboard.config import get_settings
+
+    settings = get_settings()
+    assert "A" in Scene.from_file(settings.scenes_dir / "clock.json").regions
+    muni = Scene.from_file(settings.scenes_dir / "muni.json")
+    assert set(muni.regions) == {"A", "B"}
+
+
+def test_wrong_width_error_names_the_row(tmp_path):
+    p = tmp_path / "s.json"
+    p.write_text(json.dumps(["AAA"] * ROWS))  # rows too narrow
+    with pytest.raises(ValueError, match="row 0 must be 22"):
+        Scene.from_file(p)
+
+
 def test_object_form_with_grid_key(tmp_path):
     grid = [["A"] * COLS for _ in range(ROWS)]
     p = tmp_path / "s.json"
