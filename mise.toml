@@ -1,0 +1,47 @@
+# mise is the front door for this project: tool management + dev tasks.
+# Bare task names work (e.g. `mise test`); `mise run <task>` is the explicit form.
+
+[tools]
+python = "3.13"
+uv = "latest"
+
+[tasks.install]
+description = "Install dependencies (incl. dev) into .venv"
+run = "uv sync --dev"
+
+[tasks.run]
+description = "Run the scheduler daemon for the active job"
+run = "uv run python -m vestaboard run"
+
+[tasks.preview]
+description = "Render a job to the terminal without touching the board: mise preview clock"
+run = "uv run python -m vestaboard preview"
+
+[tasks.paint]
+description = "Render a job once and send it to the board: mise paint clock"
+run = "uv run python -m vestaboard paint"
+
+[tasks.test]
+description = "Run the test suite"
+run = "uv run pytest -q"
+
+[tasks.lint]
+description = "Lint with ruff (check + format check)"
+run = ["uv run ruff check .", "uv run ruff format --check ."]
+
+[tasks.lint-fix]
+description = "Auto-fix lint + format"
+run = ["uv run ruff check --fix .", "uv run ruff format ."]
+
+[tasks.docker-build]
+description = "Build the Docker image"
+run = "docker build -t vestaboard ."
+
+[tasks.docker-up]
+description = "Start the daemon via docker compose"
+depends = ["docker-build"]
+run = "docker compose up -d"
+
+[tasks.docker-down]
+description = "Stop the docker compose stack"
+run = "docker compose down"

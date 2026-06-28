@@ -1,0 +1,39 @@
+from vestaboard import codes
+
+
+def test_letters_digits_zero():
+    assert codes.char_to_code("A") == 1
+    assert codes.char_to_code("Z") == 26
+    assert codes.char_to_code("1") == 27
+    assert codes.char_to_code("9") == 35
+    assert codes.char_to_code("0") == 36
+
+
+def test_lowercase_is_uppercased():
+    assert codes.char_to_code("a") == codes.char_to_code("A")
+
+
+def test_blank_and_punctuation():
+    assert codes.char_to_code(" ") == codes.BLANK
+    assert codes.char_to_code(":") == 50
+    assert codes.char_to_code("-") == 44
+
+
+def test_text_to_codes_roundtrips_via_code_to_char():
+    text = "L 5:12"
+    out = codes.text_to_codes(text)
+    assert "".join(codes.CODE_TO_CHAR[c] for c in out) == text
+
+
+def test_colors_are_in_range():
+    assert codes.GREEN == 66
+    assert all(codes.is_valid_code(c) for c in codes.COLORS)
+    assert not codes.is_valid_code(72)
+    assert not codes.is_valid_code(-1)
+
+
+def test_unknown_character_raises():
+    import pytest
+
+    with pytest.raises(ValueError):
+        codes.char_to_code("~")
