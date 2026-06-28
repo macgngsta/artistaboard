@@ -23,6 +23,11 @@ class ClockJob(Job):
 
     def render(self, data: datetime) -> Scene:
         scene = Scene.from_file(self.settings.scenes_dir / "clock.json")
-        glyph = self._font.render_text(data.strftime("%H:%M"))
-        scene.stamp_centered(glyph, on_code=self.settings.clock_color, region="A")
+        hhmm = data.strftime("%H:%M")
+        # Big block time across region B.
+        scene.stamp_centered(self._font.render_text(hhmm), on_code=self.settings.clock_color, region="B")
+        # Small native-character time + timezone label in the corner region C,
+        # which is 9 cells wide: "HH:MM" at the left, the 2-char tz at the right.
+        scene.text(hhmm, c=0, region="C")
+        scene.text(self.settings.clock_tz_label[:2], c=7, region="C")
         return scene
