@@ -1,0 +1,14 @@
+# Build context is the repo root. Keep it lean and avoid leaking secrets.
+.venv/
+.git/
+.github/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local state / secrets — never bake into images
+.env
+.env.*
+*.DS_Store

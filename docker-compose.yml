@@ -1,0 +1,11 @@
+services:
+  board:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - VESTABOARD_DATA_DIR=/app
+    restart: unless-stopped
