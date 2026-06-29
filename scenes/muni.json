@@ -1,8 +1,8 @@
 [
-  "##AAA#################",
-  "#AAAAA#BBBBBBB#CCCCCCC",
-  "#AAAAA#BBBBBBB#DDDDDDD",
-  "#AAAAA#BBBBBBB#EEEEEEE",
-  "##AAA#################",
-  "######FFFFFFFFFFFFFFFF"
+  "##AAA##BBB#BBB#EEEEEEE",
+  "#AAAAA#BBB#BBB########",
+  "#AAAAA#BBB#BBB#CCCCCCC",
+  "#AAAAA#BBB#BBB#DDDDDDD",
+  "##AAA##BBB#BBB########",
+  "GGGGGGGG#FFFFFFFFFFFFF"
 ]

@@ -28,16 +28,21 @@ MUNI_LINE_COLORS: dict[str, str] = {
     "T": "red",  # Third
 }
 DEFAULT_LINE_COLOR = "violet"
-# The three arrival rows in scenes/muni.json, top to bottom.
-ARRIVAL_REGIONS = ("C", "D", "E")
+# Below this many minutes the big countdown turns red ("catch it now").
+IMMINENT_MIN = 5
+# The two follow-up arrival rows in scenes/muni.json (the soonest is the headline).
+ARRIVAL_REGIONS = ("C", "D")
 # Words to drop when shortening a SIRI destination name to fit the board.
 _DEST_NOISE = ("METRO", "STATION", "STA")
+# SIRI DirectionRef → human label (region G is 7 wide, so "OUTBOUND" is clipped).
+_DIRECTIONS = {"IB": "INBOUND", "OB": "OUTBOUND"}
 
 
 @dataclass(frozen=True)
 class MuniArrivals:
     minutes: list[int] = field(default_factory=list)
     destination: str = ""
+    direction: str = ""
 
 
 def _clean_destination(name: str | None) -> str:
@@ -53,7 +58,7 @@ def parse_stop_monitoring(payload: dict, now: datetime, line: str | None = None)
     if isinstance(delivery, list):
         delivery = delivery[0] if delivery else {}
     visits = delivery.get("MonitoredStopVisit", []) or []
-    entries: list[tuple[int, str]] = []
+    entries: list[tuple[int, str, str]] = []
     for visit in visits:
         journey = visit.get("MonitoredVehicleJourney", {})
         if line and str(journey.get("LineRef", "")).upper() != line.upper():
@@ -65,11 +70,13 @@ def parse_stop_monitoring(payload: dict, now: datetime, line: str | None = None)
         when = datetime.fromisoformat(expected.replace("Z", "+00:00"))
         delta = (when - now).total_seconds() / 60
         if delta >= 0:
-            entries.append((round(delta), _clean_destination(journey.get("DestinationName"))))
+            direction = _DIRECTIONS.get(str(journey.get("DirectionRef", "")).upper(), "")
+            entries.append((round(delta), _clean_destination(journey.get("DestinationName")), direction))
     entries.sort(key=lambda e: e[0])
     entries = entries[:MAX_ARRIVALS]
-    destination = entries[0][1] if entries else ""
-    return MuniArrivals(minutes=[m for m, _ in entries], destination=destination)
+    if not entries:
+        return MuniArrivals()
+    return MuniArrivals(minutes=[m for m, _, _ in entries], destination=entries[0][1], direction=entries[0][2])
 
 
 class MuniJob(Job):
@@ -81,9 +88,14 @@ class MuniJob(Job):
         return Font.from_file(self.settings.font_path)
 
     @cached_property
+    def _badge_font(self) -> Font:
+        # 3x3 line letter/number, carved out of the colored badge (region A is 5x5).
+        return Font.from_file(self.settings.fonts_dir / "3x3pixels.json")
+
+    @cached_property
     def _score_font(self) -> Font:
-        # nanofont's digits are 3 rows tall, so the big headline fits the badge.
-        return Font.from_file(self.settings.fonts_dir / "nanofont3x4.json")
+        # 3x5 digits fill the two-slot countdown in region B (the gap is letter-spacing).
+        return Font.from_file(self.settings.fonts_dir / "3by5.json")
 
     def fetch(self) -> MuniArrivals:
         key = self.settings.fiveoneone_api_key
@@ -103,22 +115,25 @@ class MuniJob(Job):
     def render(self, data: MuniArrivals) -> Scene:
         scene = Scene.from_file(self.settings.scenes_dir / "muni.json", font=self._font)
 
-        # A: line-colored badge (glyphs) with the route letter, in the display font.
+        # A: line badge — the route letter carved out of a line-colored block.
         # Falls back to the line's own color (violet for the L) unless overridden.
         badge = self.settings.muni_color
         if badge is None:
             badge = codes.resolve_color(MUNI_LINE_COLORS.get(LINE_LABEL, DEFAULT_LINE_COLOR))
-        scene.glyphs(LINE_LABEL, region="A", on_code=codes.WHITE, fill=badge)
+        scene.glyphs(LINE_LABEL, region="A", on_code=codes.BLANK, fill=badge, font=self._badge_font)
 
-        # B: the soonest arrival as a big red headline (or "--" when no data),
-        # in the 3-row score font so it fits the badge height.
-        headline = f"{data.minutes[0]:02d}" if data.minutes else "--"
-        scene.glyphs(headline, region="B", on_code=codes.RED, align="center", font=self._score_font)
+        mins = data.minutes
+        # B: the soonest arrival as a big 3x5 countdown — red when imminent, else white.
+        if mins:
+            color = codes.RED if mins[0] < IMMINENT_MIN else codes.WHITE
+            scene.glyphs(f"{mins[0]:02d}", region="B", on_code=color, font=self._score_font)
 
-        # C/D/E: pure alphanumerics — "NN MIN" (one line per upcoming arrival).
-        for region, mins in zip(ARRIVAL_REGIONS, data.minutes, strict=False):
-            scene.text(f"{mins:02d} MIN", region=region)
+        # C/D: the next two arrivals after the headline as "NN MIN".
+        for region, m in zip(ARRIVAL_REGIONS, mins[1:], strict=False):
+            scene.text(f"{m:02d} MIN", region=region)
 
-        # F: destination along the bottom, right-aligned.
+        # E/G/F: static operator label, direction, and final destination.
+        scene.text("SFMUNI", region="E")
+        scene.text(data.direction, region="G")
         scene.text(data.destination, region="F", align="right")
         return scene

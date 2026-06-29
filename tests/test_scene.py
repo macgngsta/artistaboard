@@ -53,7 +53,7 @@ def test_bundled_scene_files_load():
     settings = get_settings()
     assert set(Scene.from_file(settings.scenes_dir / "clock.json").regions) == {"B", "C"}
     muni = Scene.from_file(settings.scenes_dir / "muni.json")
-    assert set(muni.regions) == {"A", "B", "C", "D", "E", "F"}
+    assert set(muni.regions) == {"A", "B", "C", "D", "E", "F", "G"}
 
 
 def test_wrong_width_error_names_the_row(tmp_path):
