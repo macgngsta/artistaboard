@@ -6,7 +6,7 @@ composable concepts:
 - **Scene** — the board model, defined as a JSON file (`scenes/*.json`): **6 strings of
   22 characters**, so the file reads like the board. Each character is a region **label**
   (`A`, `B`, …) or `.`/space for unassigned; same-labeled cells form a named region you
-  stamp content into. For example `scenes/muni.json`:
+  stamp content into. For example `scenes/transit.json` (shared by transit jobs):
 
   ```json
   [
