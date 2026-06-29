@@ -17,6 +17,7 @@ from datetime import datetime
 
 import httpx
 
+from .. import codes
 from ..scene import Scene
 from .sport_highscores import (
     SCOREBOARD_URL,
@@ -49,9 +50,10 @@ class SportLowScoresJob(SportHighScoresJob):
         away, home = data.away, data.home
         c_away, c_home = leader_colors(away.score, home.score)
 
-        # A/B: big score, hugging the centre (away right-aligned, home left-aligned)
-        scene.glyphs(str(away.score), region="A", on_code=c_away, align="right", font=self._score_font)
-        scene.glyphs(str(home.score), region="B", on_code=c_home, align="left", font=self._score_font)
+        # A - B: big scores either side of a dash, centred in their slots
+        scene.glyphs(str(away.score), region="A", on_code=c_away, align="center", font=self._score_font)
+        scene.glyphs("-", region="J", on_code=codes.WHITE, align="center", font=self._score_font)
+        scene.glyphs(str(home.score), region="B", on_code=c_home, align="center", font=self._score_font)
 
         # status spans the top-right
         scene.write(game_status(data), region="C", align="right")
