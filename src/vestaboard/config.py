@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     worldcup_group: str = ""
     worldcup_rotate_seconds: int = 300
 
+    # NBA job: rotate among live games every N seconds (or on a score change).
+    nba_rotate_seconds: int = 300
+
     @property
     def scenes_dir(self) -> Path:
         return self.data_dir / "scenes"
