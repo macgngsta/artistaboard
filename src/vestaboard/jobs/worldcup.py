@@ -211,26 +211,29 @@ class WorldCupJob(Job):
     def render(self, data: Match | None) -> Scene:
         scene = Scene.from_file(self.settings.scenes_dir / "worldcup.json", font=self._font)
         if data is None:
-            scene.write("NO MATCHES", region="D")
+            scene.write("NO MATCHES", region="F")
             return scene
         m = data
         rng = random.Random(f"{m.home}-{m.away}")
         c_home, c_away = resolve_colors(self._team_colors(m.home), self._team_colors(m.away), rng)
 
-        # Single badge A shows both teams: top two rows = home, bottom two = away.
-        for r, c in scene.regions["A"].cells:
-            scene.set(r, c, c_home if r < 2 else c_away)
+        # A/B: the two teams' flag-colored badges (home left, away right).
+        scene.fill(c_home, region="A")
+        scene.fill(c_away, region="B")
 
+        # C/D/E: metadata down the right (WORLD CUP / STAGE n / GROUP x).
         line2, line3 = stage_lines(m)
-        scene.write("WORLD CUP", region="M", r=0, align="right")
-        scene.write(line2, region="M", r=1, align="right")
-        scene.write(line3, region="M", r=2, align="right")
+        scene.write("WORLD CUP", region="C", align="right")
+        scene.write(line2, region="D", align="right")
+        scene.write(line3, region="E", align="right")
 
-        scene.write(_short(m.home, m.home_code, 16), region="D")
-        scene.write(_short(m.away, m.away_code, 18), region="E")
-        if m.started:
-            scene.write(f"{m.home_score}:{m.away_score}", region="F", align="right")
-        scene.write(match_status(m, datetime.now()), region="G", align="right")
+        # Pre-match card: each team on its own row with the kickoff date/time.
+        kickoff_date = m.kickoff.strftime("%b %d").upper() if m.kickoff else "TBD"
+        kickoff_time = m.kickoff.strftime("%H:%M") if m.kickoff else ""
+        scene.write(_short(m.home, m.home_code, 12), region="F")
+        scene.write(kickoff_date, region="G", align="right")
+        scene.write(_short(m.away, m.away_code, 12), region="H")
+        scene.write(kickoff_time, region="I", align="right")
         return scene
 
     def paint(self, client) -> dict | None:

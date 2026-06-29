@@ -113,15 +113,17 @@ def test_select_rotates_then_switches_on_score_change():
     assert after_goal.id == "b"
 
 
-def test_render_splits_badge_by_team_and_shows_score():
+def test_render_two_badges_and_kickoff_card():
     job = _job_with_flags({"Scotland": ["blue", "white"], "Morocco": ["red", "green"]})
-    scene = job.render(_match(home_score=2, away_score=0, elapsed="67"))
-    cells = scene.regions["A"].cells
-    top = {scene.grid[r][c] for r, c in cells if r < 2}
-    bottom = {scene.grid[r][c] for r, c in cells if r >= 2}
-    assert top == {codes.BLUE} and bottom == {codes.RED}  # home top, away bottom
+    scene = job.render(_match())  # kickoff 06/28/2026 13:00
+    a = {scene.grid[r][c] for r, c in scene.regions["A"].cells}
+    b = {scene.grid[r][c] for r, c in scene.regions["B"].cells}
+    assert a == {codes.BLUE} and b == {codes.RED}  # home left, away right flag colors
     flat = [c for row in scene.to_characters() for c in row]
-    assert codes.char_to_code("2") in flat  # score rendered
+    for ch in "SCOTLAND":  # home team name on its row
+        assert codes.char_to_code(ch) in flat
+    assert codes.char_to_code("J") in flat  # JUN date
+    assert codes.char_to_code(":") in flat  # 13:00 kickoff time
 
 
 def test_paint_skips_when_unchanged():
