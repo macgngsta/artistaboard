@@ -5,15 +5,15 @@ Data: rezarahiminia/worldcup2026 raw JSON (no API key). It carries live fields
 data is the pre-tournament snapshot (all ``notstarted``), so we fall back to the
 next upcoming match.
 
-Color coding: each team's badge takes the Vestaboard color closest to its flag's
-most prominent color (data/flags.json). If both teams resolve to the same color,
-the team for whom it's more prominent keeps it and the other gets a random color.
+Color coding: the leading team's score is highlighted (violet while live, blue
+once final), the trailing team's score white, a tie both white. Each team name
+gets a single accent pixel after it in that team's score color, so score and
+name link visually.
 """
 
 from __future__ import annotations
 
 import json
-import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import cached_property
@@ -29,7 +29,6 @@ MATCHES_URL = "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main
 TEAMS_URL = "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main/football.teams.json"
 
 LIVE_WINDOW = timedelta(minutes=150)  # a match is "live" within this of kickoff
-_RANDOM_PALETTE = ["red", "orange", "yellow", "green", "blue", "violet", "white"]
 _STAGE_LINE3 = {
     "r32": "ROUND 32",
     "r16": "ROUND 16",
@@ -124,18 +123,14 @@ def stage_lines(m: Match) -> tuple[str, str]:
     return "STAGE 2", _STAGE_LINE3.get(m.stage, m.stage.upper())
 
 
-def resolve_colors(home_colors: list[str], away_colors: list[str], rng: random.Random) -> tuple[int, int]:
-    """Pick each team's badge color. Distinct primaries → each keeps theirs.
-    Same primary → the team for whom it's more prominent keeps it (tiebreak: the
-    flag with fewer colors is "more" that color); the loser gets a random color."""
-    home = [codes.resolve_color(c) for c in home_colors] or [codes.WHITE]
-    away = [codes.resolve_color(c) for c in away_colors] or [codes.WHITE]
-    if home[0] != away[0]:
-        return home[0], away[0]
-    shared = home[0]
-    home_keeps = len(home_colors) <= len(away_colors)
-    other = codes.resolve_color(rng.choice([c for c in _RANDOM_PALETTE if codes.resolve_color(c) != shared]))
-    return (shared, other) if home_keeps else (other, shared)
+def score_colors(home_score: int, away_score: int, final: bool) -> tuple[int, int]:
+    """Leader's score is violet while live, blue once final; trailer/tie white."""
+    leader = codes.BLUE if final else codes.VIOLET
+    if home_score > away_score:
+        return leader, codes.WHITE
+    if away_score > home_score:
+        return codes.WHITE, leader
+    return codes.WHITE, codes.WHITE
 
 
 class WorldCupJob(Job):
@@ -155,11 +150,13 @@ class WorldCupJob(Job):
         return Font.from_file(self.settings.font_path)
 
     @cached_property
+    def _score_font(self) -> Font:
+        # World Cup scores stay to a single digit, so a 3x4 glyph fits per slot.
+        return Font.from_file(self.settings.fonts_dir / "bytesized3x4.json")
+
+    @cached_property
     def _flags(self) -> dict[str, list[str]]:
         return json.loads(self.settings.flags_path.read_text())["teams"]
-
-    def _team_colors(self, name: str) -> list[str]:
-        return self._flags.get(name, ["white"])
 
     # -- selection -------------------------------------------------------------
     def _known(self, m: Match) -> bool:
@@ -214,27 +211,60 @@ class WorldCupJob(Job):
             scene.write("NO MATCHES", region="F")
             return scene
         m = data
-        rng = random.Random(f"{m.home}-{m.away}")
-        c_home, c_away = resolve_colors(self._team_colors(m.home), self._team_colors(m.away), rng)
+        final = m.finished
+        live = m.started and not m.finished
+        c_home, c_away = score_colors(m.home_score, m.away_score, final)
 
-        # A/B: the two teams' flag-colored badges (home left, away right).
-        scene.fill(c_home, region="A")
-        scene.fill(c_away, region="B")
+        # A - J - B: the two big scores around a centred dash, leader-coloured.
+        scene.glyphs(str(m.home_score), region="A", on_code=c_home, font=self._score_font)
+        scene.glyphs("-", region="J", on_code=codes.WHITE, font=self._score_font)
+        scene.glyphs(str(m.away_score), region="B", on_code=c_away, font=self._score_font)
 
-        # C/D/E: metadata down the right (WORLD CUP / STAGE n / GROUP x).
+        # C/D/E/K: metadata down the right (WORLD CUP / STAGE n / GROUP x / FINAL).
         line2, line3 = stage_lines(m)
         scene.write("WORLD CUP", region="C", align="right")
         scene.write(line2, region="D", align="right")
         scene.write(line3, region="E", align="right")
+        if final:
+            scene.write("FINAL", region="K", align="right")
 
-        # Pre-match card: each team on its own row with the kickoff date/time.
-        kickoff_date = m.kickoff.strftime("%b %d").upper() if m.kickoff else "TBD"
-        kickoff_time = m.kickoff.strftime("%H:%M") if m.kickoff else ""
-        scene.write(_short(m.home, m.home_code, 12), region="F")
-        scene.write(kickoff_date, region="G", align="right")
-        scene.write(_short(m.away, m.away_code, 12), region="H")
-        scene.write(kickoff_time, region="I", align="right")
+        # F/H: each team's name with an accent pixel in its score colour.
+        self._name_with_accent(scene, "F", m.home, m.home_code, c_home)
+        self._name_with_accent(scene, "H", m.away, m.away_code, c_away)
+
+        # G/I: per-state detail. Final -> a WIN banner on the winner's row; live ->
+        # the elapsed minute on G; pre-match -> kickoff date (G) and time (I).
+        if final:
+            if m.home_score > m.away_score:
+                self._win_banner(scene, "G")
+            elif m.away_score > m.home_score:
+                self._win_banner(scene, "I")
+        elif live:
+            scene.write(_elapsed(m), region="G", align="right")
+            # stoppage time (e.g. +05) isn't in the feed, so I stays blank while live
+        elif m.kickoff:
+            scene.write(m.kickoff.strftime("%b %d").upper(), region="G", align="right")
+            scene.write(m.kickoff.strftime("%H:%M"), region="I", align="right")
+        else:
+            scene.write("TBD", region="G", align="right")
         return scene
+
+    def _name_with_accent(self, scene: Scene, region: str, name: str, code: str, color: int) -> None:
+        r = scene.regions[region]
+        label = _short(name, code, r.width - 1)  # leave the last cell for the accent
+        scene.write(label, region=region)
+        accent_col = r.col0 + len(label)
+        if accent_col <= r.col1:
+            scene.set(r.row0, accent_col, color)
+
+    def _win_banner(self, scene: Scene, region: str) -> None:
+        """A centred ``[green] W I N [green]`` strip marking the winner's row."""
+        r = scene.regions[region]
+        cells = [codes.GREEN, codes.char_to_code("W"), codes.char_to_code("I"), codes.char_to_code("N"), codes.GREEN]
+        start = r.col0 + max(0, (r.width - len(cells)) // 2)
+        for i, code in enumerate(cells):
+            if start + i <= r.col1:
+                scene.set(r.row0, start + i, code)
 
     def paint(self, client) -> dict | None:
         chars = self.build().to_characters()
@@ -248,3 +278,8 @@ class WorldCupJob(Job):
 def _short(name: str, code: str, width: int) -> str:
     name = name.upper()
     return name if len(name) <= width else (code.upper() if code else name[:width])
+
+
+def _elapsed(m: Match) -> str:
+    """Live clock for region G: the minute (``67'``) or the feed's own label (``HT``)."""
+    return f"{m.elapsed}'" if m.elapsed.isdigit() else m.elapsed.upper()
