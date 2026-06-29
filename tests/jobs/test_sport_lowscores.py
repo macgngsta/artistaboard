@@ -4,13 +4,13 @@ from vestaboard.jobs.sport_highscores import Game, Team
 from vestaboard.jobs.sport_lowscores import SportLowScoresJob
 
 
-def _game(away_score, home_score, state="post", away="Yankees", home="Red Sox"):
+def _game(away_score, home_score, state="post", away="Yankees", home="Red Sox", detail=""):
     return Game(
         id="1",
         home=Team("BOS", home, home_score),
         away=Team("NYY", away, away_score),
         state=state,
-        detail="",
+        detail=detail,
         clock="",
         period=9,
         start=None,
@@ -28,12 +28,31 @@ def test_render_side_by_side_with_league_and_names():
     assert codes.char_to_code("X") in flat  # RED SOX
 
 
-def test_big_score_colored_by_leader():
+def _region_colors(scene, label):
+    return {scene.grid[r][c] for r, c in scene.regions[label].cells}
+
+
+def test_big_score_colored_by_state_and_leader():
     job = SportLowScoresJob(Settings(_env_file=None, sport_lowscore_league="baseball/mlb"))
-    scene = job.render(_game(4, 5))  # home leads -> B green, away A white
-    a_colors = {scene.grid[r][c] for r, c in scene.regions["A"].cells}
-    b_colors = {scene.grid[r][c] for r, c in scene.regions["B"].cells}
-    assert codes.WHITE in a_colors and codes.GREEN in b_colors
+
+    # Live: the leader's big score is violet, the other white.
+    live = job.render(_game(4, 5, state="in"))  # home leads
+    assert codes.WHITE in _region_colors(live, "A") and codes.VIOLET in _region_colors(live, "B")
+
+    # Final: the leader turns blue and a matching blue accent pixel appears in region I.
+    final = job.render(_game(4, 5, state="post"))
+    assert codes.WHITE in _region_colors(final, "A") and codes.BLUE in _region_colors(final, "B")
+    i = final.regions["I"]
+    assert final.grid[i.row0][i.col0] == codes.BLUE
+
+
+def test_status_uses_league_phrasing_while_live():
+    job = SportLowScoresJob(Settings(_env_file=None, sport_lowscore_league="baseball/mlb"))
+    scene = job.render(_game(1, 0, state="in", detail="Bot 8th"))
+    c = scene.regions["C"]
+    code_to_char = {v: k for k, v in codes.CHAR_TO_CODE.items()}
+    text = "".join(code_to_char.get(scene.grid[c.row0][cc], "") for cc in range(c.col0, c.col1 + 1))
+    assert "BOT 8TH" in text  # ESPN detail, not the generic "Q8"
 
 
 def test_render_no_games():
