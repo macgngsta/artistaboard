@@ -24,6 +24,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY src/ src/
 COPY scenes/ scenes/
 COPY fonts/ fonts/
+COPY data/ data/
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1

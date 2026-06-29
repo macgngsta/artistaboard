@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     aircraft_lat: float = 37.7749
     aircraft_lon: float = -122.4194
 
+    # World Cup job: only show a specific group (e.g. "C") when set; rotate among
+    # live matches every N seconds (or immediately on a score change).
+    worldcup_group: str = ""
+    worldcup_rotate_seconds: int = 300
+
     @property
     def scenes_dir(self) -> Path:
         return self.data_dir / "scenes"
@@ -74,6 +79,10 @@ class Settings(BaseSettings):
     @property
     def font_path(self) -> Path:
         return self.fonts_dir / f"{self.font}.json"
+
+    @property
+    def flags_path(self) -> Path:
+        return self.data_dir / "data" / "flags.json"
 
 
 @lru_cache
