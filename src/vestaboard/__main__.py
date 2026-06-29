@@ -38,6 +38,15 @@ def _paint(job_name: str) -> int:
     return 0
 
 
+def schedule_ticks(scheduler, tick, interval_seconds: int):
+    """Paint once now, then on every interval. The interval's first fire is at
+    now+interval, so the immediate tick isn't a double paint. (Do NOT pass
+    next_run_time=None to add_job — that adds the job paused and it never fires.)"""
+    tick()
+    scheduler.add_job(tick, "interval", seconds=interval_seconds)
+    return scheduler
+
+
 def _run() -> int:
     from apscheduler.schedulers.blocking import BlockingScheduler
 
@@ -52,9 +61,7 @@ def _run() -> int:
         except Exception:
             log.exception("job %s failed", job.name)
 
-    scheduler = BlockingScheduler()
-    scheduler.add_job(tick, "interval", seconds=job.interval_seconds, next_run_time=None)
-    tick()  # paint immediately on startup
+    scheduler = schedule_ticks(BlockingScheduler(), tick, job.interval_seconds)
     log.info("scheduled %s every %ss", job.name, job.interval_seconds)
     try:
         scheduler.start()
