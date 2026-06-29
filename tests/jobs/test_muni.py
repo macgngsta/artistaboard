@@ -10,11 +10,12 @@ def _settings(**overrides):
     return Settings(_env_file=None, **overrides)
 
 
-def _visit(line, iso, dest="Metro Embarcadero Station"):
+def _visit(line, iso, dest="Metro Embarcadero Station", direction="IB"):
     return {
         "MonitoredVehicleJourney": {
             "LineRef": line,
             "DestinationName": dest,
+            "DirectionRef": direction,
             "MonitoredCall": {"ExpectedArrivalTime": iso},
         }
     }
@@ -30,13 +31,14 @@ NOW = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 def test_parse_minutes_destination_sorted_and_filtered():
     payload = _payload(
         _visit("L", "2024-01-01T12:12:00Z"),
-        _visit("L", "2024-01-01T12:05:00Z"),
+        _visit("L", "2024-01-01T12:05:00Z", direction="OB"),
         _visit("N", "2024-01-01T12:03:00Z"),  # different line, filtered out
         _visit("L", "2024-01-01T11:58:00Z"),  # in the past, dropped
     )
     result = parse_stop_monitoring(payload, NOW, line="L")
     assert result.minutes == [5, 12]
     assert result.destination == "EMBARCADERO"  # "Metro"/"Station" stripped
+    assert result.direction == "OUTBOUND"  # DirectionRef of the soonest arrival
 
 
 def test_parse_handles_list_delivery_and_caps_results():
@@ -62,30 +64,50 @@ def test_parse_empty():
     assert result.minutes == [] and result.destination == ""
 
 
+def _region_codes(scene, label):
+    reg = scene.regions[label]
+    return {scene.grid[r][c] for r, c in reg.cells}
+
+
 def test_render_populates_all_regions():
-    scene = MuniJob(_settings()).render(MuniArrivals(minutes=[8, 25, 33], destination="EMBARCADERO"))
+    scene = MuniJob(_settings()).render(
+        MuniArrivals(minutes=[8, 25, 33], destination="EMBARCADERO", direction="INBOUND")
+    )
     chars = scene.to_characters()
 
-    # A: violet badge fill + white L glyph
-    a = scene.regions["A"]
-    a_codes = {chars[r][c] for r in range(a.row0, a.row1 + 1) for c in range(a.col0, a.col1 + 1)}
-    assert codes.VIOLET in a_codes and codes.WHITE in a_codes
+    # A: violet badge with the route letter carved out (blank pixels inside the fill).
+    a_codes = _region_codes(scene, "A")
+    assert codes.VIOLET in a_codes and codes.BLANK in a_codes
 
-    # C/D/E: each row carries its minutes + "MIN"
-    for region, mins in zip(("C", "D", "E"), (8, 25, 33), strict=True):
+    # B: the soonest arrival (8 >= 5 min) renders as a big WHITE countdown.
+    assert codes.WHITE in _region_codes(scene, "B")
+
+    # C/D: the two arrivals after the headline as "NN MIN".
+    for region, mins in zip(("C", "D"), (25, 33), strict=True):
         reg = scene.regions[region]
         row = chars[reg.row0]
         assert row[reg.col0 : reg.col0 + 2] == codes.text_to_codes(f"{mins:02d}")
         assert row[reg.col0 + 3 : reg.col0 + 6] == codes.text_to_codes("MIN")
 
-    # F: destination text appears on the bottom row
+    # E/G/F: operator label, full direction, destination.
+    e = scene.regions["E"]
+    assert chars[e.row0][e.col0 : e.col0 + 6] == codes.text_to_codes("SFMUNI")
+    g = scene.regions["G"]
+    assert chars[g.row0][g.col0 : g.col0 + 7] == codes.text_to_codes("INBOUND")
     flat = [c for r in chars for c in r]
     assert codes.char_to_code("E") in flat and codes.char_to_code("O") in flat
 
 
-def test_render_no_data_shows_dashes():
+def test_render_imminent_arrival_is_red():
+    scene = MuniJob(_settings()).render(MuniArrivals(minutes=[3, 12], destination="EMBARCADERO"))
+    # Under IMMINENT_MIN (5) the big countdown turns red ("catch it now").
+    assert codes.RED in _region_codes(scene, "B")
+
+
+def test_render_no_data_is_blank_headline():
     scene = MuniJob(_settings()).render(MuniArrivals(minutes=[], destination=""))
-    # "--" renders as the big red headline glyphs in region B; no MIN rows are drawn.
-    b = scene.regions["B"]
-    assert any(scene.grid[r][c] == codes.RED for r in range(b.row0, b.row1 + 1) for c in range(b.col0, b.col1 + 1))
-    assert codes.char_to_code("M") not in [c for row in scene.to_characters() for c in row]
+    # No arrivals: no countdown glyph in B and the C/D "NN MIN" rows stay blank.
+    b_codes = _region_codes(scene, "B")
+    assert codes.WHITE not in b_codes and codes.RED not in b_codes
+    for region in ("C", "D"):
+        assert _region_codes(scene, region) == {codes.BLANK}
