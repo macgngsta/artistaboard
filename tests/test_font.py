@@ -79,6 +79,15 @@ def test_3x3pixels_font_loads_as_3x3():
     assert font.has("A") and font.has("z")
 
 
+def test_3by5_font_loads_with_clean_digits_and_caps():
+    font = Font.from_file(get_settings().fonts_dir / "3by5.json")
+    assert font.width == 3 and font.height == 5
+    assert _ascii(font.get("0")) == ["###", "#.#", "#.#", "#.#", "###"]  # ring
+    assert _ascii(font.get("A")) == [".#.", "#.#", "###", "#.#", "#.#"]
+    # lowercase is not bundled — it falls back to the uppercase glyph
+    assert font.get("a").pixels == font.get("A").pixels
+
+
 def test_invalid_structure(tmp_path):
     p = tmp_path / "f.json"
     p.write_text(json.dumps({"structure": "bad", "glyphs": {}}))
