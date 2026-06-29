@@ -61,6 +61,7 @@ mise run
 | `clock` | 60s | — | Big 3×4-glyph `HH:MM` clock. |
 | `muni` | 30s | `FIVEONEONE_API_KEY`, `MUNI_STOP_CODE` | Next L Taraval arrivals from [511.org](https://511.org/open-data/token). |
 | `world_cup` | 60s | — | Live 2026 World Cup scoreboard ([data](https://github.com/rezarahiminia/worldcup2026), no key). Flag-colored team badges; rotates among live matches every `WORLDCUP_ROTATE_SECONDS` or on a score change. |
+| `nba` | 60s | — | Live NBA scoreboard ([ESPN](https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard), no key). Badge color = **leader green, other white** (tie = both white); rotates among live games. |
 | `aircraft` | — | — | Stub: ADS-B planes overhead (not yet implemented). |
 
 The `world_cup` badges are **color-coded by flag** (`data/flags.json` → nearest

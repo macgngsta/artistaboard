@@ -7,12 +7,14 @@ from .jobs.aircraft import AircraftJob
 from .jobs.base import Job
 from .jobs.clock import ClockJob
 from .jobs.muni import MuniJob
+from .jobs.nba import NBAJob
 from .jobs.worldcup import WorldCupJob
 
 JOB_TYPES: dict[str, type[Job]] = {
     ClockJob.name: ClockJob,
     MuniJob.name: MuniJob,
     WorldCupJob.name: WorldCupJob,
+    NBAJob.name: NBAJob,
     AircraftJob.name: AircraftJob,
 }
 
