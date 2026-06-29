@@ -2,7 +2,7 @@
 
 Spotify's currently-playing track is private user data, so this needs OAuth: a
 Spotify app (client id/secret) and a one-time auth to get a refresh token (run
-``vestaboard spotify-auth``). The job refreshes an access token each poll and
+``artistaboard spotify-auth``). The job refreshes an access token each poll and
 reads the currently-playing track.
 
 Declarative: the scene (spotify.json) owns the layout/colours (green logo +
@@ -86,7 +86,7 @@ class SpotifyJob(Job):
         s = self.settings
         if not (s.spotify_client_id and s.spotify_client_secret and s.spotify_refresh_token):
             raise RuntimeError(
-                "spotify job needs SPOTIFY_CLIENT_ID/SECRET/REFRESH_TOKEN (run `vestaboard spotify-auth`)"
+                "spotify job needs SPOTIFY_CLIENT_ID/SECRET/REFRESH_TOKEN (run `artistaboard spotify-auth`)"
             )
         token = get_access_token(s.spotify_client_id, s.spotify_client_secret, s.spotify_refresh_token)
         resp = httpx.get(NOW_PLAYING_URL, headers={"Authorization": f"Bearer {token}"}, timeout=15.0)

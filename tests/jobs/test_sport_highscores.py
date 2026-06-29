@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from vestaboard import codes
-from vestaboard.config import Settings
-from vestaboard.jobs.sport_highscores import (
+from artistaboard import codes
+from artistaboard.config import Settings
+from artistaboard.jobs.sport_highscores import (
     Game,
     SportHighScoresJob,
     Team,

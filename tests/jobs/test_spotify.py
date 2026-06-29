@@ -1,9 +1,9 @@
 import httpx
 import respx
 
-from vestaboard import codes
-from vestaboard.config import Settings
-from vestaboard.jobs.spotify import (
+from artistaboard import codes
+from artistaboard.config import Settings
+from artistaboard.jobs.spotify import (
     NowPlaying,
     SpotifyJob,
     authorize_url,

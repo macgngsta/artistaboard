@@ -1,9 +1,9 @@
 import json
 
-from vestaboard import codes
-from vestaboard.config import Settings
-from vestaboard.render import render_scene
-from vestaboard.scene import Scene
+from artistaboard import codes
+from artistaboard.config import Settings
+from artistaboard.render import render_scene
+from artistaboard.scene import Scene
 
 
 def _scene(tmp_path, grid, render, font="bytesized3x4"):

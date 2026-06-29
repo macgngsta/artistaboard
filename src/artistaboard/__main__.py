@@ -1,8 +1,8 @@
 """CLI: preview / paint a job, or run the scheduler daemon.
 
-python -m vestaboard preview <job>     # render to terminal, never touch the board
-python -m vestaboard paint <job>       # render once and send to the board
-python -m vestaboard run               # daemon: paint ACTIVE_JOB on its schedule
+python -m artistaboard preview <job>     # render to terminal, never touch the board
+python -m artistaboard paint <job>       # render once and send to the board
+python -m artistaboard run               # daemon: paint ACTIVE_JOB on its schedule
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from .config import get_settings
 from .preview import render_preview
 from .registry import JOB_TYPES, build_job
 
-log = logging.getLogger("vestaboard")
+log = logging.getLogger("artistaboard")
 
 
 def _preview(job_name: str) -> int:
@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     # httpx logs each request URL at INFO; the 511 endpoint carries the api_key as a
     # query param, so keep it at WARNING to avoid leaking the key into logs.
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    parser = argparse.ArgumentParser(prog="vestaboard")
+    parser = argparse.ArgumentParser(prog="artistaboard")
     sub = parser.add_subparsers(dest="command", required=True)
 
     job_names = sorted(JOB_TYPES)

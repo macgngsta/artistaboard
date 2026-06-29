@@ -1,4 +1,4 @@
-from vestaboard import codes
+from artistaboard import codes
 
 
 def test_letters_digits_zero():
