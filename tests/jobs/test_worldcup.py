@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from vestaboard import codes
-from vestaboard.config import Settings
-from vestaboard.jobs.worldcup import (
+from artistaboard import codes
+from artistaboard.config import Settings
+from artistaboard.jobs.worldcup import (
     Match,
     WorldCupJob,
     is_live,

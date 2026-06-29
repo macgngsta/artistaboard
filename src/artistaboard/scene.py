@@ -64,7 +64,7 @@ class Scene:
         self.regions: dict[str, Region] = regions or {}
         self.font = font  # default font for glyphs(); each call may override it
         # Declarative render config (object-form scenes): region -> binding cfg,
-        # plus the named default font. Consumed by vestaboard.render.render_scene.
+        # plus the named default font. Consumed by artistaboard.render.render_scene.
         self.render_config: dict[str, dict] = {}
         self.font_name: str | None = None
 

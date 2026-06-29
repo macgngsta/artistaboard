@@ -14,7 +14,7 @@ from . import codes
 def _default_data_dir() -> Path:
     """Repo root that holds scenes/ and fonts/.
 
-    In an editable dev install this file lives at <root>/src/vestaboard/config.py,
+    In an editable dev install this file lives at <root>/src/artistaboard/config.py,
     so walk up until we find a directory that actually contains scenes/. The
     Docker image overrides this with VESTABOARD_DATA_DIR.
     """
@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     sport_lowscore_league: str = "baseball/mlb"
 
     # Spotify "now playing" job (OAuth). Create an app at developer.spotify.com,
-    # then run `vestaboard spotify-auth` to obtain the refresh token.
+    # then run `artistaboard spotify-auth` to obtain the refresh token.
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
     spotify_refresh_token: str = ""

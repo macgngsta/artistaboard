@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from vestaboard.config import get_settings
-from vestaboard.font import Font, Glyph
+from artistaboard.config import get_settings
+from artistaboard.font import Font, Glyph
 
 
 def _nanofont() -> Font:

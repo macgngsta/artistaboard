@@ -2,8 +2,8 @@ import httpx
 import pytest
 import respx
 
-from vestaboard import COLS, ROWS
-from vestaboard.client import BASE_URL, HEADER, VestaboardClient, VestaboardError
+from artistaboard import COLS, ROWS
+from artistaboard.client import BASE_URL, HEADER, VestaboardClient, VestaboardError
 
 
 def _grid(code=0):
@@ -49,10 +49,10 @@ def test_send_raises_on_error_status():
 def test_rate_gate_sleeps_between_sends(monkeypatch):
     respx.post(BASE_URL).mock(return_value=httpx.Response(200, json={"status": "ok"}))
     slept = []
-    monkeypatch.setattr("vestaboard.client.time.sleep", lambda s: slept.append(s))
+    monkeypatch.setattr("artistaboard.client.time.sleep", lambda s: slept.append(s))
     # advance monotonic clock only slightly between the two sends
     ticks = iter([100.0, 100.1, 100.2, 100.2])
-    monkeypatch.setattr("vestaboard.client.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("artistaboard.client.time.monotonic", lambda: next(ticks))
     with VestaboardClient("k", min_interval=15.0) as client:
         client.send(_grid())
         client.send(_grid())

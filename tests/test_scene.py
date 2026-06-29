@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from vestaboard import COLS, ROWS, codes
-from vestaboard.font import Glyph
-from vestaboard.scene import Scene
+from artistaboard import COLS, ROWS, codes
+from artistaboard.font import Glyph
+from artistaboard.scene import Scene
 
 
 def _write_grid(path, fill_map):
@@ -48,7 +48,7 @@ def test_string_row_format_parses_like_lists(tmp_path):
 
 
 def test_bundled_scene_files_load():
-    from vestaboard.config import get_settings
+    from artistaboard.config import get_settings
 
     settings = get_settings()
     assert set(Scene.from_file(settings.scenes_dir / "clock.json").regions) == {"B", "C", "D"}
@@ -90,8 +90,8 @@ def test_text_clips_at_region_edge(tmp_path):
 
 
 def test_glyphs_renders_text_with_font_and_fill(tmp_path):
-    from vestaboard.config import get_settings
-    from vestaboard.font import Font
+    from artistaboard.config import get_settings
+    from artistaboard.font import Font
 
     font = Font.from_file(get_settings().fonts_dir / "nanofont3x4.json")
     p = _write_grid(tmp_path / "s.json", {(r, c): "A" for r in range(4) for c in range(3)})
@@ -112,8 +112,8 @@ def test_fill_respects_region_shape_not_bounding_box(tmp_path):
 
 
 def test_glyphs_invert_carves_letter_out_of_fill(tmp_path):
-    from vestaboard.config import get_settings
-    from vestaboard.font import Font
+    from artistaboard.config import get_settings
+    from artistaboard.font import Font
 
     font = Font.from_file(get_settings().fonts_dir / "nanofont3x4.json")
     p = _write_grid(tmp_path / "s.json", {(r, c): "A" for r in range(4) for c in range(3)})

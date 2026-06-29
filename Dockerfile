@@ -1,5 +1,5 @@
 # Build context is the repository root.
-#   docker build -t vestaboard .
+#   docker build -t artistaboard .
 FROM python:3.13-slim AS base
 
 # ---------- build stage ----------
@@ -29,4 +29,4 @@ COPY data/ data/
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "-m", "vestaboard", "run"]
+CMD ["python", "-m", "artistaboard", "run"]

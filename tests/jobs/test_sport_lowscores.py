@@ -1,7 +1,7 @@
-from vestaboard import codes
-from vestaboard.config import Settings
-from vestaboard.jobs.sport_highscores import Game, Team
-from vestaboard.jobs.sport_lowscores import SportLowScoresJob
+from artistaboard import codes
+from artistaboard.config import Settings
+from artistaboard.jobs.sport_highscores import Game, Team
+from artistaboard.jobs.sport_lowscores import SportLowScoresJob
 
 
 def _game(away_score, home_score, state="post", away="Yankees", home="Red Sox", detail=""):

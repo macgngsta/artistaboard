@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
-from vestaboard import codes
-from vestaboard.config import Settings
-from vestaboard.jobs.muni import MuniArrivals, MuniJob, parse_stop_monitoring
+from artistaboard import codes
+from artistaboard.config import Settings
+from artistaboard.jobs.muni import MuniArrivals, MuniJob, parse_stop_monitoring
 
 
 def _settings(**overrides):
