@@ -53,7 +53,7 @@ def test_bundled_scene_files_load():
     settings = get_settings()
     assert set(Scene.from_file(settings.scenes_dir / "clock.json").regions) == {"B", "C"}
     muni = Scene.from_file(settings.scenes_dir / "muni.json")
-    assert set(muni.regions) == {"A", "B"}
+    assert set(muni.regions) == {"A", "B", "C", "D", "E", "F"}
 
 
 def test_wrong_width_error_names_the_row(tmp_path):
@@ -87,6 +87,56 @@ def test_text_clips_at_region_edge(tmp_path):
     assert scene.grid[0][1] == codes.char_to_code("B")
     # nothing painted past the region bound
     assert scene.grid[0][2] == codes.BLANK
+
+
+def test_glyphs_renders_text_with_font_and_fill(tmp_path):
+    from vestaboard.config import get_settings
+    from vestaboard.font import Font
+
+    font = Font.from_file(get_settings().fonts_dir / "nanofont3x4.json")
+    p = _write_grid(tmp_path / "s.json", {(r, c): "A" for r in range(4) for c in range(3)})
+    scene = Scene.from_file(p, font=font)
+    scene.glyphs("L", region="A", on_code=codes.WHITE, fill=codes.VIOLET)
+    a_codes = {scene.grid[r][c] for r in range(4) for c in range(3)}
+    assert a_codes == {codes.VIOLET, codes.WHITE}  # fill + lit glyph pixels
+
+
+def test_fill_respects_region_shape_not_bounding_box(tmp_path):
+    # An L-shaped region: corner (0,2) is unassigned, so fill must skip it.
+    p = _write_grid(tmp_path / "s.json", {(0, 0): "A", (1, 0): "A", (1, 1): "A", (1, 2): "A"})
+    scene = Scene.from_file(p)
+    scene.fill(codes.VIOLET, region="A")
+    assert scene.grid[0][0] == codes.VIOLET
+    assert scene.grid[1][2] == codes.VIOLET
+    assert scene.grid[0][2] == codes.BLANK  # inside the bbox but not the shape
+
+
+def test_glyphs_invert_carves_letter_out_of_fill(tmp_path):
+    from vestaboard.config import get_settings
+    from vestaboard.font import Font
+
+    font = Font.from_file(get_settings().fonts_dir / "nanofont3x4.json")
+    p = _write_grid(tmp_path / "s.json", {(r, c): "A" for r in range(4) for c in range(3)})
+    normal = Scene.from_file(p, font=font)
+    normal.glyphs("L", region="A", on_code=codes.WHITE)
+    inverted = Scene.from_file(p, font=font)
+    inverted.glyphs("L", region="A", on_code=codes.WHITE, invert=True)
+    # inverting flips which cells are lit
+    lit_normal = {(r, c) for r in range(4) for c in range(3) if normal.grid[r][c] == codes.WHITE}
+    lit_inverted = {(r, c) for r in range(4) for c in range(3) if inverted.grid[r][c] == codes.WHITE}
+    assert lit_normal and lit_inverted and lit_normal.isdisjoint(lit_inverted)
+
+
+def test_glyphs_without_font_raises():
+    with pytest.raises(ValueError, match="needs a font"):
+        Scene().glyphs("L")
+
+
+def test_text_align_center_and_right():
+    scene = Scene()
+    scene.text("AB", align="right")  # whole board, 22 wide
+    assert scene.grid[0][20] == codes.char_to_code("A")
+    assert scene.grid[0][21] == codes.char_to_code("B")
 
 
 def test_stamp_only_lights_on_pixels():

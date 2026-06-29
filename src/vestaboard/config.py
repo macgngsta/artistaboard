@@ -5,8 +5,10 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from . import codes
 
 
 def _default_data_dir() -> Path:
@@ -36,11 +38,19 @@ class Settings(BaseSettings):
     active_job: str = "clock"
 
     # Glyph font (a file <font>.json in fonts/). Bundled: nanofont3x4, bytesized3x4.
-    font: str = "nanofont3x4"
+    font: str = "bytesized3x4"
 
-    # Accent colors (Vestaboard color codes).
-    clock_color: int = 69  # white
-    muni_color: int = 66  # green
+    # Accent colors: a code (69) or a name ("white"/"violet"). muni_color is
+    # optional — when unset, the badge uses the Muni line's own color.
+    clock_color: int = codes.WHITE
+    muni_color: int | None = None
+
+    @field_validator("clock_color", "muni_color", mode="before")
+    @classmethod
+    def _resolve_color(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        return codes.resolve_color(v)  # type: ignore[arg-type]
 
     # Small timezone label shown in the clock's corner (2 chars, e.g. PT/ET).
     clock_tz_label: str = "PT"

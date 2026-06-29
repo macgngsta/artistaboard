@@ -32,6 +32,22 @@ def test_colors_are_in_range():
     assert not codes.is_valid_code(-1)
 
 
+def test_resolve_color_accepts_names_numbers_and_codes():
+    assert codes.resolve_color("violet") == codes.VIOLET
+    assert codes.resolve_color("purple") == codes.VIOLET  # alias
+    assert codes.resolve_color("GREEN") == codes.GREEN  # case-insensitive
+    assert codes.resolve_color(66) == codes.GREEN
+    assert codes.resolve_color("66") == codes.GREEN  # numeric string
+
+
+def test_resolve_color_rejects_garbage():
+    import pytest
+
+    for bad in ("mauve", 99, -1, True):
+        with pytest.raises(ValueError):
+            codes.resolve_color(bad)
+
+
 def test_unknown_character_raises():
     import pytest
 

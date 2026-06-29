@@ -30,7 +30,9 @@ from pathlib import Path
 
 from . import COLS, ROWS
 from . import codes as codes_mod
-from .font import Glyph
+from .font import Font, Glyph
+
+_ALIGN = ("left", "center", "right")
 
 # Characters that mark a cell as filler/blank (not part of any region).
 _UNASSIGNED = {"", ".", " ", "#"}
@@ -57,15 +59,16 @@ class Region:
 class Scene:
     """A mutable 6x22 grid of Vestaboard character codes plus named regions."""
 
-    def __init__(self, regions: dict[str, Region] | None = None) -> None:
+    def __init__(self, regions: dict[str, Region] | None = None, font: Font | None = None) -> None:
         self.grid: list[list[int]] = [[codes_mod.BLANK] * COLS for _ in range(ROWS)]
         self.regions: dict[str, Region] = regions or {}
+        self.font = font  # default font for glyphs(); each call may override it
 
     @classmethod
-    def from_file(cls, path: str | Path) -> Scene:
+    def from_file(cls, path: str | Path, font: Font | None = None) -> Scene:
         raw = json.loads(Path(path).read_text())
         grid = raw["grid"] if isinstance(raw, dict) else raw
-        return cls(regions=_parse_regions(grid))
+        return cls(regions=_parse_regions(grid), font=font)
 
     # -- placement -------------------------------------------------------------
     def _origin(self, region: str | None) -> tuple[int, int, int, int]:
@@ -73,6 +76,14 @@ class Scene:
             return 0, 0, ROWS - 1, COLS - 1
         r = self.regions[region]
         return r.row0, r.col0, r.row1, r.col1
+
+    @staticmethod
+    def _align_offset(span: int, content: int, align: str) -> int:
+        if align == "center":
+            return max(0, (span - content) // 2)
+        if align == "right":
+            return max(0, span - content)
+        return 0
 
     def set(self, r: int, c: int, code: int) -> Scene:
         if not codes_mod.is_valid_code(code):
@@ -82,22 +93,56 @@ class Scene:
         return self
 
     def fill(self, code: int, region: str | None = None) -> Scene:
-        r0, c0, r1, c1 = self._origin(region)
-        for r in range(r0, r1 + 1):
-            for c in range(c0, c1 + 1):
-                self.set(r, c, code)
+        """Fill a region's actual labeled cells (not its bounding box), so
+        non-rectangular shapes like a rounded badge keep their outline."""
+        if region is None:
+            cells = [(r, c) for r in range(ROWS) for c in range(COLS)]
+        else:
+            cells = list(self.regions[region].cells)
+        for r, c in cells:
+            self.set(r, c, code)
         return self
 
-    def text(self, s: str, r: int = 0, c: int = 0, region: str | None = None) -> Scene:
-        """Write ``s`` one character per cell, offset within ``region``."""
+    def text(self, s: str, r: int = 0, c: int = 0, region: str | None = None, align: str = "left") -> Scene:
+        """Render ``s`` as **pure alphanumerics** (one native character per cell)
+        within ``region``, optionally aligned ``left``/``center``/``right``."""
         r0, c0, r1, c1 = self._origin(region)
+        c += self._align_offset(c1 - c0 + 1, len(s), align)
         for i, code in enumerate(codes_mod.text_to_codes(s)):
-            col = c0 + c + i
-            row = r0 + r
+            col, row = c0 + c + i, r0 + r
             if col > c1 or row > r1:
                 break
             self.set(row, col, code)
         return self
+
+    def glyphs(
+        self,
+        s: str,
+        region: str | None = None,
+        *,
+        on_code: int = codes_mod.WHITE,
+        fill: int | None = None,
+        align: str = "center",
+        spacing: int = 1,
+        font: Font | None = None,
+        invert: bool = False,
+    ) -> Scene:
+        """Render ``s`` as an **array of big block glyphs** within ``region``,
+        using ``font`` (or the scene's default). Lit pixels become ``on_code``;
+        ``fill`` optionally paints the region background first (e.g. a badge);
+        ``invert`` swaps on/off so the letters are carved out of the fill."""
+        font = font or self.font
+        if font is None:
+            raise ValueError("glyphs() needs a font; pass Scene.from_file(..., font=...) or font=")
+        if fill is not None:
+            self.fill(fill, region)
+        glyph = font.render_text(s, spacing=spacing)
+        if invert:
+            glyph = glyph.inverted()
+        r0, c0, r1, c1 = self._origin(region)
+        r = self._align_offset(r1 - r0 + 1, glyph.height, "center")
+        c = self._align_offset(c1 - c0 + 1, glyph.width, align)
+        return self.stamp(glyph, r, c, on_code=on_code, region=region)
 
     def stamp(
         self, glyph: Glyph, r: int = 0, c: int = 0, on_code: int = codes_mod.WHITE, region: str | None = None
@@ -112,14 +157,6 @@ class Scene:
                 if r0 <= row <= r1 and c0 <= col <= c1:
                     self.set(row, col, on_code)
         return self
-
-    def stamp_centered(self, glyph: Glyph, on_code: int = codes_mod.WHITE, region: str | None = None) -> Scene:
-        """Stamp a glyph centered within ``region`` (or the whole board)."""
-        r0, c0, r1, c1 = self._origin(region)
-        height, width = r1 - r0 + 1, c1 - c0 + 1
-        r = max(0, (height - glyph.height) // 2)
-        c = max(0, (width - glyph.width) // 2)
-        return self.stamp(glyph, r, c, on_code, region)
 
     def to_characters(self) -> list[list[int]]:
         """Return a validated 6x22 deep copy for sending to the board."""

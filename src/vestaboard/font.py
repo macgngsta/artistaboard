@@ -31,6 +31,12 @@ class Glyph:
     def blank(self) -> bool:
         return not any(any(row) for row in self.pixels)
 
+    def inverted(self) -> Glyph:
+        """Return the negative of this glyph (on<->off), e.g. to carve a letter
+        out of a filled region instead of painting it."""
+        pixels = tuple(tuple(not p for p in row) for row in self.pixels)
+        return Glyph(width=self.width, height=self.height, pixels=pixels)
+
 
 class Font:
     """A character -> Glyph map loaded from a JSON font file."""

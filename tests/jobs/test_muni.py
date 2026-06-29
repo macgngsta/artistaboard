@@ -1,14 +1,20 @@
 from datetime import UTC, datetime
 
 from vestaboard import codes
-from vestaboard.config import get_settings
-from vestaboard.jobs.muni import MuniJob, parse_arrivals
+from vestaboard.config import Settings
+from vestaboard.jobs.muni import MuniArrivals, MuniJob, parse_stop_monitoring
 
 
-def _visit(line, iso):
+def _settings(**overrides):
+    # Hermetic: ignore the developer's local .env so tests use known defaults.
+    return Settings(_env_file=None, **overrides)
+
+
+def _visit(line, iso, dest="Metro Embarcadero Station"):
     return {
         "MonitoredVehicleJourney": {
             "LineRef": line,
+            "DestinationName": dest,
             "MonitoredCall": {"ExpectedArrivalTime": iso},
         }
     }
@@ -21,14 +27,16 @@ def _payload(*visits):
 NOW = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
-def test_parse_computes_minutes_sorted_and_filtered():
+def test_parse_minutes_destination_sorted_and_filtered():
     payload = _payload(
         _visit("L", "2024-01-01T12:12:00Z"),
         _visit("L", "2024-01-01T12:05:00Z"),
         _visit("N", "2024-01-01T12:03:00Z"),  # different line, filtered out
         _visit("L", "2024-01-01T11:58:00Z"),  # in the past, dropped
     )
-    assert parse_arrivals(payload, NOW, line="L") == [5, 12]
+    result = parse_stop_monitoring(payload, NOW, line="L")
+    assert result.minutes == [5, 12]
+    assert result.destination == "EMBARCADERO"  # "Metro"/"Station" stripped
 
 
 def test_parse_handles_list_delivery_and_caps_results():
@@ -46,25 +54,38 @@ def test_parse_handles_list_delivery_and_caps_results():
             ]
         }
     }
-    assert parse_arrivals(payload, NOW, line="L") == [2, 9, 15]  # capped at 3
+    assert parse_stop_monitoring(payload, NOW, line="L").minutes == [2, 9, 15]  # capped at 3
 
 
 def test_parse_empty():
-    assert parse_arrivals({}, NOW, line="L") == []
+    result = parse_stop_monitoring({}, NOW, line="L")
+    assert result.minutes == [] and result.destination == ""
 
 
-def test_render_draws_l_badge_and_minutes():
-    scene = MuniJob(get_settings()).render([5, 12])
+def test_render_populates_all_regions():
+    scene = MuniJob(_settings()).render(MuniArrivals(minutes=[8, 25, 33], destination="EMBARCADERO"))
     chars = scene.to_characters()
-    # L badge uses the accent color (green) in region A (left 5 cols)
-    assert any(chars[r][c] == codes.GREEN for r in range(6) for c in range(5))
-    # the minutes text "5  12" appears somewhere in the right region
-    flat = [c for row in chars for c in row]
-    assert codes.char_to_code("5") in flat
-    assert codes.char_to_code("1") in flat and codes.char_to_code("2") in flat
+
+    # A: violet badge fill + white L glyph
+    a = scene.regions["A"]
+    a_codes = {chars[r][c] for r in range(a.row0, a.row1 + 1) for c in range(a.col0, a.col1 + 1)}
+    assert codes.VIOLET in a_codes and codes.WHITE in a_codes
+
+    # D/E/F: each row carries its minutes + "MIN"
+    for region, mins in zip(("D", "E", "F"), (8, 25, 33), strict=True):
+        reg = scene.regions[region]
+        row = chars[reg.row0]
+        assert row[reg.col0 : reg.col0 + 2] == codes.text_to_codes(f"{mins:02d}")
+        assert row[reg.col0 + 3 : reg.col0 + 6] == codes.text_to_codes("MIN")
+
+    # C: destination text appears on the bottom row
+    flat = [c for r in chars for c in r]
+    assert codes.char_to_code("E") in flat and codes.char_to_code("O") in flat
 
 
 def test_render_no_data_shows_dashes():
-    scene = MuniJob(get_settings()).render([])
-    flat = [c for row in scene.to_characters() for c in row]
-    assert codes.char_to_code("-") in flat
+    scene = MuniJob(_settings()).render(MuniArrivals(minutes=[], destination=""))
+    # "--" renders as big white glyphs in region B; no MIN rows are drawn.
+    b = scene.regions["B"]
+    assert any(scene.grid[r][c] == codes.WHITE for r in range(b.row0, b.row1 + 1) for c in range(b.col0, b.col1 + 1))
+    assert codes.char_to_code("M") not in [c for row in scene.to_characters() for c in row]

@@ -20,8 +20,52 @@ FILLED = 71
 
 COLORS = frozenset({RED, ORANGE, YELLOW, GREEN, BLUE, VIOLET, WHITE, BLACK, FILLED})
 
+# Human-readable color names -> code, so configs can say "violet" instead of 68.
+NAME_TO_CODE: dict[str, int] = {
+    "blank": BLANK,
+    "red": RED,
+    "orange": ORANGE,
+    "yellow": YELLOW,
+    "green": GREEN,
+    "blue": BLUE,
+    "violet": VIOLET,
+    "purple": VIOLET,
+    "white": WHITE,
+    "black": BLACK,
+    "filled": FILLED,
+}
+CODE_TO_NAME: dict[int, str] = {
+    RED: "red",
+    ORANGE: "orange",
+    YELLOW: "yellow",
+    GREEN: "green",
+    BLUE: "blue",
+    VIOLET: "violet",
+    WHITE: "white",
+    BLACK: "black",
+    FILLED: "filled",
+}
+
 MIN_CODE = 0
 MAX_CODE = 71
+
+
+def resolve_color(value: int | str) -> int:
+    """Resolve a color given as a code (``68``), numeric string (``"68"``), or
+    name (``"violet"``/``"purple"``) to its Vestaboard code."""
+    if isinstance(value, bool):
+        raise ValueError(f"invalid color {value!r}")
+    if isinstance(value, int):
+        if is_valid_code(value):
+            return value
+        raise ValueError(f"color code {value} out of range 0-71")
+    s = str(value).strip().lower()
+    if s in NAME_TO_CODE:
+        return NAME_TO_CODE[s]
+    if s.lstrip("-").isdigit():
+        return resolve_color(int(s))
+    raise ValueError(f"unknown color {value!r}; use a name {sorted(NAME_TO_CODE)} or a code 0-71")
+
 
 # Punctuation -> code. Codes 37-60 per the Vestaboard reference.
 _PUNCTUATION: dict[str, int] = {
