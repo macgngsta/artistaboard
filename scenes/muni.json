@@ -1,8 +1,19 @@
-[
-  "##AAA##BBB#BBB#EEEEEEE",
-  "#AAAAA#BBB#BBB########",
-  "#AAAAA#BBB#BBB#CCCCCCC",
-  "#AAAAA#BBB#BBB#DDDDDDD",
-  "##AAA##BBB#BBB########",
-  "GGGGGGGG#FFFFFFFFFFFFF"
-]
+{
+  "grid": [
+    "##AAA##BBB#BBB#EEEEEEE",
+    "#AAAAA#BBB#BBB########",
+    "#AAAAA#BBB#BBB#CCCCCCC",
+    "#AAAAA#BBB#BBB#DDDDDDD",
+    "##AAA##BBB#BBB########",
+    "GGGGGGGG#FFFFFFFFFFFFF"
+  ],
+  "render": {
+    "A": {"bind": "line", "as": "glyphs", "font": "3x3pixels", "color": "blank", "fill": {"data": "badge_color"}},
+    "B": {"bind": "countdown", "as": "glyphs", "font": "3by5", "color": {"rule": "imminent", "field": "soonest", "threshold": 5}},
+    "C": {"bind": "arrival1", "as": "text"},
+    "D": {"bind": "arrival2", "as": "text"},
+    "E": {"bind": "operator", "as": "text"},
+    "G": {"bind": "direction", "as": "text"},
+    "F": {"bind": "destination", "as": "text", "align": "right"}
+  }
+}

@@ -5,22 +5,20 @@ Spotify app (client id/secret) and a one-time auth to get a refresh token (run
 ``vestaboard spotify-auth``). The job refreshes an access token each poll and
 reads the currently-playing track.
 
-Scene: A = music logo, B = color accents (both Spotify green); C = song title,
-D = artists.
+Declarative: the scene (spotify.json) owns the layout/colours (green logo +
+accents, the "NOTHING PLAYING" fallback); this job only supplies the track and
+artists data.
 """
 
 from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from functools import cached_property
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 
-from .. import codes
-from ..font import Font
-from ..scene import Scene
 from .base import Job
 
 AUTH_URL = "https://accounts.spotify.com/authorize"
@@ -82,14 +80,7 @@ def parse_now_playing(payload: dict | None) -> NowPlaying | None:
 class SpotifyJob(Job):
     name = "spotify"
     interval_seconds = 20
-
-    def __init__(self, settings) -> None:
-        super().__init__(settings)
-        self._last_sent: list[list[int]] | None = None
-
-    @cached_property
-    def _font(self) -> Font:
-        return Font.from_file(self.settings.font_path)
+    scene_name = "spotify"
 
     def fetch(self) -> NowPlaying | None:
         s = self.settings
@@ -104,21 +95,7 @@ class SpotifyJob(Job):
         resp.raise_for_status()
         return parse_now_playing(resp.json())
 
-    def render(self, data: NowPlaying | None) -> Scene:
-        scene = Scene.from_file(self.settings.scenes_dir / "spotify.json", font=self._font)
-        scene.fill(codes.GREEN, region="A")  # music logo
-        scene.fill(codes.GREEN, region="B")  # accents
+    def bind(self, data: NowPlaying | None) -> dict[str, Any]:
         if data is None:
-            scene.textbox("NOTHING PLAYING", region="C")
-            return scene
-        scene.textbox(data.track.upper(), region="C")
-        scene.textbox(", ".join(data.artists).upper(), region="D")
-        return scene
-
-    def paint(self, client) -> dict | None:
-        chars = self.build().to_characters()
-        if chars == self._last_sent:
-            return None
-        result = client.send(chars)
-        self._last_sent = chars
-        return result
+            return {}  # scene's fallback renders "NOTHING PLAYING"
+        return {"track": data.track, "artists": ", ".join(data.artists)}

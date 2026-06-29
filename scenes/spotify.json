@@ -1,8 +1,16 @@
-[
- "B####################B",
- "#####AA###CCCCCCCCCCC#",
- "#####A#A##CCCCCCCCCCC#",
- "###AAA####DDDDDDDDDDD#",
- "##AAA#####DDDDDDDDDDD#",
- "B#########DDDDDDDDDDDB"
-]
+{
+  "grid": [
+    "B####################B",
+    "#####AA###CCCCCCCCCCC#",
+    "#####A#A##CCCCCCCCCCC#",
+    "###AAA####DDDDDDDDDDD#",
+    "##AAA#####DDDDDDDDDDD#",
+    "B#########DDDDDDDDDDDB"
+  ],
+  "render": {
+    "A": {"as": "fill", "color": "green"},
+    "B": {"as": "fill", "color": "green"},
+    "C": {"bind": "track", "as": "textbox", "transform": "upper", "fallback": "NOTHING PLAYING"},
+    "D": {"bind": "artists", "as": "textbox", "transform": "upper"}
+  }
+}

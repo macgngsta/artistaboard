@@ -63,12 +63,21 @@ class Scene:
         self.grid: list[list[int]] = [[codes_mod.BLANK] * COLS for _ in range(ROWS)]
         self.regions: dict[str, Region] = regions or {}
         self.font = font  # default font for glyphs(); each call may override it
+        # Declarative render config (object-form scenes): region -> binding cfg,
+        # plus the named default font. Consumed by vestaboard.render.render_scene.
+        self.render_config: dict[str, dict] = {}
+        self.font_name: str | None = None
 
     @classmethod
     def from_file(cls, path: str | Path, font: Font | None = None) -> Scene:
         raw = json.loads(Path(path).read_text())
-        grid = raw["grid"] if isinstance(raw, dict) else raw
-        return cls(regions=_parse_regions(grid), font=font)
+        is_obj = isinstance(raw, dict)
+        grid = raw["grid"] if is_obj else raw
+        scene = cls(regions=_parse_regions(grid), font=font)
+        if is_obj:
+            scene.render_config = raw.get("render", {})
+            scene.font_name = raw.get("font")
+        return scene
 
     # -- placement -------------------------------------------------------------
     def _origin(self, region: str | None) -> tuple[int, int, int, int]:

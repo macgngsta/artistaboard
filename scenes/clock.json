@@ -1,8 +1,16 @@
-[
-  "######################",
-  "##BBB#BBB#BBB#BBB#BBB#",
-  "##BBB#BBB#BBB#BBB#BBB#",
-  "##BBB#BBB#BBB#BBB#BBB#",
-  "##BBB#BBB#BBB#BBB#BBB#",
-  "############CCCCC##CC#"
-]
+{
+  "grid": [
+    "######################",
+    "##BBB#BBB#BBB#BBB#BBB#",
+    "##BBB#BBB#BBB#BBB#BBB#",
+    "##BBB#BBB#BBB#BBB#BBB#",
+    "##BBB#BBB#BBB#BBB#BBB#",
+    "############CCCCC##DD#"
+  ],
+  "font": "bytesized3x4",
+  "render": {
+    "B": {"bind": "time", "as": "glyphs", "color": {"data": "time_color"}},
+    "C": {"bind": "time", "as": "text", "align": "left"},
+    "D": {"bind": "tz", "as": "text", "align": "left"}
+  }
+}

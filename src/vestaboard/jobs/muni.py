@@ -1,24 +1,21 @@
-"""Muni job: next SF Muni L Taraval arrivals via the 511.org SIRI API."""
+"""Muni job: next SF Muni Metro arrivals (configurable line) via 511.org SIRI."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from functools import cached_property
+from typing import Any
 
 import httpx
 
 from .. import codes
-from ..font import Font
-from ..scene import Scene
 from .base import Job
 
 SIRI_URL = "http://api.511.org/transit/StopMonitoring"
-LINE_LABEL = "L"
 MAX_ARRIVALS = 3
 
 # Official SF Muni Metro line colors, mapped to the nearest Vestaboard color.
-# Used to color the badge so it matches the line (e.g. the L Taraval is purple).
+# The badge takes the configured line's color (e.g. the L Taraval is purple).
 MUNI_LINE_COLORS: dict[str, str] = {
     "J": "yellow",  # Church (tan/olive)
     "K": "blue",  # Ingleside
@@ -28,10 +25,6 @@ MUNI_LINE_COLORS: dict[str, str] = {
     "T": "red",  # Third
 }
 DEFAULT_LINE_COLOR = "violet"
-# Below this many minutes the big countdown turns red ("catch it now").
-IMMINENT_MIN = 5
-# The two follow-up arrival rows in scenes/muni.json (the soonest is the headline).
-ARRIVAL_REGIONS = ("C", "D")
 # Words to drop when shortening a SIRI destination name to fit the board.
 _DEST_NOISE = ("METRO", "STATION", "STA")
 # SIRI DirectionRef → human label (region G is 7 wide, so "OUTBOUND" is clipped).
@@ -82,20 +75,7 @@ def parse_stop_monitoring(payload: dict, now: datetime, line: str | None = None)
 class MuniJob(Job):
     name = "muni"
     interval_seconds = 30
-
-    @cached_property
-    def _font(self) -> Font:
-        return Font.from_file(self.settings.font_path)
-
-    @cached_property
-    def _badge_font(self) -> Font:
-        # 3x3 line letter/number, carved out of the colored badge (region A is 5x5).
-        return Font.from_file(self.settings.fonts_dir / "3x3pixels.json")
-
-    @cached_property
-    def _score_font(self) -> Font:
-        # 3x5 digits fill the two-slot countdown in region B (the gap is letter-spacing).
-        return Font.from_file(self.settings.fonts_dir / "3by5.json")
+    scene_name = "muni"
 
     def fetch(self) -> MuniArrivals:
         key = self.settings.fiveoneone_api_key
@@ -110,30 +90,27 @@ class MuniJob(Job):
         resp.raise_for_status()
         # 511 serves JSON with a UTF-8 BOM; httpx .json() trips on it.
         payload = httpx.Response(200, content=resp.content.decode("utf-8-sig").encode()).json()
-        return parse_stop_monitoring(payload, datetime.now(UTC), line=LINE_LABEL)
+        return parse_stop_monitoring(payload, datetime.now(UTC), line=self.settings.muni_line.upper())
 
-    def render(self, data: MuniArrivals) -> Scene:
-        scene = Scene.from_file(self.settings.scenes_dir / "muni.json", font=self._font)
-
-        # A: line badge — the route letter carved out of a line-colored block.
-        # Falls back to the line's own color (violet for the L) unless overridden.
+    def bind(self, data: MuniArrivals) -> dict[str, Any]:
+        # The badge fills with the configured line's own colour (the user picks the
+        # line; L→violet, T→red) unless muni_color overrides it; the scene carves
+        # the route letter out of it (color: blank).
+        line = self.settings.muni_line.upper()
         badge = self.settings.muni_color
         if badge is None:
-            badge = codes.resolve_color(MUNI_LINE_COLORS.get(LINE_LABEL, DEFAULT_LINE_COLOR))
-        scene.glyphs(LINE_LABEL, region="A", on_code=codes.BLANK, fill=badge, font=self._badge_font)
-
+            badge = codes.resolve_color(MUNI_LINE_COLORS.get(line, DEFAULT_LINE_COLOR))
+        env: dict[str, Any] = {
+            "line": line,
+            "badge_color": badge,
+            "operator": "SFMUNI",
+            "direction": data.direction,
+            "destination": data.destination,
+        }
         mins = data.minutes
-        # B: the soonest arrival as a big 3x5 countdown — red when imminent, else white.
-        if mins:
-            color = codes.RED if mins[0] < IMMINENT_MIN else codes.WHITE
-            scene.glyphs(f"{mins[0]:02d}", region="B", on_code=color, font=self._score_font)
-
-        # C/D: the next two arrivals after the headline as "NN MIN".
-        for region, m in zip(ARRIVAL_REGIONS, mins[1:], strict=False):
-            scene.text(f"{m:02d} MIN", region=region)
-
-        # E/G/F: static operator label, direction, and final destination.
-        scene.text("SFMUNI", region="E")
-        scene.text(data.direction, region="G")
-        scene.text(data.destination, region="F", align="right")
-        return scene
+        if mins:  # soonest arrival is the big countdown; the rest are follow-up rows
+            env["countdown"] = f"{mins[0]:02d}"
+            env["soonest"] = mins[0]
+        for key, m in zip(("arrival1", "arrival2"), mins[1:], strict=False):
+            env[key] = f"{m:02d} MIN"
+        return env

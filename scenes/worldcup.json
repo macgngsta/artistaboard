@@ -1,8 +1,24 @@
-[
-  "AAA#JJJ#BBB#CCCCCCCCCC",
-  "AAA#JJJ#BBB#DDDDDDDDDD",
-  "AAA#JJJ#BBB#EEEEEEEEEE",
-  "AAA#JJJ#BBB#KKKKKKKKKK",
-  "FFFFFFFFFFFF#GGGGGGGGG",
-  "HHHHHHHHHHHH#IIIIIIIII"
-]
+{
+  "grid": [
+    "AAA#JJJ#BBB#CCCCCCCCCC",
+    "AAA#JJJ#BBB#DDDDDDDDDD",
+    "AAA#JJJ#BBB#EEEEEEEEEE",
+    "AAA#JJJ#BBB#KKKKKKKKKK",
+    "FFFFFFFFFFFF#GGGGGGGGG",
+    "HHHHHHHHHHHH#IIIIIIIII"
+  ],
+  "font": "bytesized3x4",
+  "render": {
+    "A": {"bind": "home.score", "as": "glyphs", "color": {"rule": "leader", "team": "home"}},
+    "J": {"bind": "sep", "as": "glyphs", "color": "white"},
+    "B": {"bind": "away.score", "as": "glyphs", "color": {"rule": "leader", "team": "away"}},
+    "C": {"bind": "title", "as": "text", "align": "right"},
+    "D": {"bind": "stage2", "as": "text", "align": "right"},
+    "E": {"bind": "stage3", "as": "text", "align": "right"},
+    "K": {"bind": "final_label", "as": "text", "align": "right"},
+    "F": {"bind": "home.name", "as": "text", "fallback": "NO MATCHES"},
+    "G": {"bind": "g_text", "as": "text", "align": "right"},
+    "H": {"bind": "away.name", "as": "text"},
+    "I": {"bind": "i_text", "as": "text", "align": "right"}
+  }
+}
