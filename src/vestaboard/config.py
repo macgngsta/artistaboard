@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # Daemon: which job to paint on a schedule.
     active_job: str = "clock"
 
-    # Glyph font (a file <font>.json in fonts/). Bundled: nanofont3x4, bytesized3x4.
+    # Glyph font (a file <font>.json in fonts/). Bundled: nanofont3x4, bytesized3x4, 3x3pixels.
     font: str = "bytesized3x4"
 
     # Accent colors: a code (69) or a name ("white"/"violet"). muni_color is

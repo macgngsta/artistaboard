@@ -69,6 +69,16 @@ def test_bytesized_has_distinct_upper_and_lowercase():
         assert font.glyphs[upper].pixels != font.glyphs[lower].pixels
 
 
+def test_3x3pixels_font_loads_as_3x3():
+    font = Font.from_file(get_settings().fonts_dir / "3x3pixels.json")
+    assert font.width == 3 and font.height == 3
+    assert all(g.width == 3 and g.height == 3 for g in font.glyphs.values())
+    assert _ascii(font.get("0")) == ["###", "#.#", "###"]  # the ring digit
+    # colon is hand-set to vertical dots so HH:MM clocks render legibly
+    assert _ascii(font.get(":")) == [".#.", "...", ".#."]
+    assert font.has("A") and font.has("z")
+
+
 def test_invalid_structure(tmp_path):
     p = tmp_path / "f.json"
     p.write_text(json.dumps({"structure": "bad", "glyphs": {}}))
