@@ -62,8 +62,8 @@ mise run
 | `muni` | 30s | `FIVEONEONE_API_KEY`, `MUNI_STOP_CODE` | Next L Taraval arrivals from [511.org](https://511.org/open-data/token). |
 | `world_cup` | 60s | — | Live 2026 World Cup scoreboard ([data](https://github.com/rezarahiminia/worldcup2026), no key). Flag-colored team badges; rotates among live matches every `WORLDCUP_ROTATE_SECONDS` or on a score change. |
 | `sport_highscores` | 60s | — | Live scoreboard for high-scoring sports ([ESPN](https://www.espn.com/), no key) — set `SPORT_LEAGUE` (e.g. `basketball/nba`). Big score in the **leader's color (green, else white)**; rotates among live games. |
+| `sport_lowscores` | 60s | — | Side-by-side scoreboard for low-scoring sports (1-2 digit scores) — set `SPORT_LOWSCORE_LEAGUE` (e.g. `baseball/mlb`). Same leader coloring; rotates among live games. |
 | `spotify` | 20s | OAuth (see below) | "Now playing" — track + artists with the Spotify-green logo/accents. |
-| `aircraft` | — | — | Stub: ADS-B planes overhead (not yet implemented). |
 
 **Spotify setup:** create an app at [developer.spotify.com](https://developer.spotify.com),
 put the client id/secret + redirect URI in `.env`, then run `vestaboard spotify-auth`
@@ -78,7 +78,7 @@ prominent for keeps it and the other gets a random color.
 All via `.env` (see `.env.example`). Key vars:
 
 - `VESTABOARD_RW_KEY` — Vestaboard Read/Write API key. Required for `paint`/`run`.
-- `ACTIVE_JOB` — which job the daemon paints (`clock` | `muni` | `aircraft`).
+- `ACTIVE_JOB` — which job the daemon paints (`clock` | `muni` | `world_cup` | `sport_highscores` | `sport_lowscores` | `spotify`).
 - `FIVEONEONE_API_KEY`, `MUNI_STOP_CODE` — for the Muni job.
 - `CLOCK_COLOR` / `MUNI_COLOR` — a color **name** (`red orange yellow green blue
   violet`/`purple white black filled`) or code (`63`–`71`). Leave `MUNI_COLOR`

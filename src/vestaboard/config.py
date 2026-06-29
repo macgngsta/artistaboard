@@ -59,10 +59,6 @@ class Settings(BaseSettings):
     fiveoneone_api_key: str = ""
     muni_stop_code: str = ""
 
-    # Aircraft job (stub).
-    aircraft_lat: float = 37.7749
-    aircraft_lon: float = -122.4194
-
     # World Cup job: only show a specific group (e.g. "C") when set; rotate among
     # live matches every N seconds (or immediately on a score change).
     worldcup_group: str = ""
@@ -71,6 +67,10 @@ class Settings(BaseSettings):
     # Sport high-scores job: ESPN sport/league path + rotation cadence.
     sport_league: str = "basketball/nba"
     sport_rotate_seconds: int = 300
+
+    # Sport low-scores job: ESPN sport/league path for sports whose scores stay
+    # to 1-2 digits (baseball, soccer, hockey). Shares sport_rotate_seconds.
+    sport_lowscore_league: str = "baseball/mlb"
 
     # Spotify "now playing" job (OAuth). Create an app at developer.spotify.com,
     # then run `vestaboard spotify-auth` to obtain the refresh token.
