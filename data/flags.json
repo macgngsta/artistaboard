@@ -1,0 +1,229 @@
+{
+ "_note": "Per-team flag colors as Vestaboard color names, most prominent first. Used by the world_cup job for badge color coding.",
+ "teams": {
+  "Algeria": [
+   "green",
+   "white",
+   "red"
+  ],
+  "Argentina": [
+   "blue",
+   "white"
+  ],
+  "Australia": [
+   "blue",
+   "red",
+   "white"
+  ],
+  "Austria": [
+   "red",
+   "white"
+  ],
+  "Belgium": [
+   "black",
+   "yellow",
+   "red"
+  ],
+  "Bosnia and Herzegovina": [
+   "blue",
+   "yellow",
+   "white"
+  ],
+  "Brazil": [
+   "green",
+   "yellow",
+   "blue"
+  ],
+  "Canada": [
+   "red",
+   "white"
+  ],
+  "Cape Verde": [
+   "blue",
+   "white",
+   "red"
+  ],
+  "Colombia": [
+   "yellow",
+   "blue",
+   "red"
+  ],
+  "Croatia": [
+   "red",
+   "white",
+   "blue"
+  ],
+  "Curaçao": [
+   "blue",
+   "yellow",
+   "white"
+  ],
+  "Czech Republic": [
+   "blue",
+   "white",
+   "red"
+  ],
+  "Democratic Republic of the Congo": [
+   "blue",
+   "red",
+   "yellow"
+  ],
+  "Ecuador": [
+   "yellow",
+   "blue",
+   "red"
+  ],
+  "Egypt": [
+   "red",
+   "white",
+   "black"
+  ],
+  "England": [
+   "white",
+   "red"
+  ],
+  "France": [
+   "blue",
+   "white",
+   "red"
+  ],
+  "Germany": [
+   "black",
+   "red",
+   "yellow"
+  ],
+  "Ghana": [
+   "red",
+   "yellow",
+   "green"
+  ],
+  "Haiti": [
+   "blue",
+   "red"
+  ],
+  "Iran": [
+   "green",
+   "white",
+   "red"
+  ],
+  "Iraq": [
+   "red",
+   "white",
+   "black"
+  ],
+  "Ivory Coast": [
+   "orange",
+   "white",
+   "green"
+  ],
+  "Japan": [
+   "white",
+   "red"
+  ],
+  "Jordan": [
+   "black",
+   "white",
+   "green"
+  ],
+  "Mexico": [
+   "green",
+   "white",
+   "red"
+  ],
+  "Morocco": [
+   "red",
+   "green"
+  ],
+  "Netherlands": [
+   "red",
+   "white",
+   "blue"
+  ],
+  "New Zealand": [
+   "blue",
+   "red",
+   "white"
+  ],
+  "Norway": [
+   "red",
+   "white",
+   "blue"
+  ],
+  "Panama": [
+   "red",
+   "white",
+   "blue"
+  ],
+  "Paraguay": [
+   "red",
+   "white",
+   "blue"
+  ],
+  "Portugal": [
+   "green",
+   "red"
+  ],
+  "Qatar": [
+   "violet",
+   "white"
+  ],
+  "Saudi Arabia": [
+   "green",
+   "white"
+  ],
+  "Scotland": [
+   "blue",
+   "white"
+  ],
+  "Senegal": [
+   "green",
+   "yellow",
+   "red"
+  ],
+  "South Africa": [
+   "green",
+   "yellow",
+   "red"
+  ],
+  "South Korea": [
+   "white",
+   "red",
+   "blue"
+  ],
+  "Spain": [
+   "red",
+   "yellow"
+  ],
+  "Sweden": [
+   "blue",
+   "yellow"
+  ],
+  "Switzerland": [
+   "red",
+   "white"
+  ],
+  "Tunisia": [
+   "red",
+   "white"
+  ],
+  "Turkey": [
+   "red",
+   "white"
+  ],
+  "United States": [
+   "blue",
+   "red",
+   "white"
+  ],
+  "Uruguay": [
+   "blue",
+   "white",
+   "yellow"
+  ],
+  "Uzbekistan": [
+   "blue",
+   "white",
+   "green"
+  ]
+ }
+}

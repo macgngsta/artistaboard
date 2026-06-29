@@ -60,7 +60,12 @@ mise run
 |-----|----------|-------|-------|
 | `clock` | 60s | — | Big 3×4-glyph `HH:MM` clock. |
 | `muni` | 30s | `FIVEONEONE_API_KEY`, `MUNI_STOP_CODE` | Next L Taraval arrivals from [511.org](https://511.org/open-data/token). |
+| `world_cup` | 60s | — | Live 2026 World Cup scoreboard ([data](https://github.com/rezarahiminia/worldcup2026), no key). Flag-colored team badges; rotates among live matches every `WORLDCUP_ROTATE_SECONDS` or on a score change. |
 | `aircraft` | — | — | Stub: ADS-B planes overhead (not yet implemented). |
+
+The `world_cup` badges are **color-coded by flag** (`data/flags.json` → nearest
+Vestaboard color). If both teams' primary color collides, the team it's more
+prominent for keeps it and the other gets a random color.
 
 ## Configuration
 
