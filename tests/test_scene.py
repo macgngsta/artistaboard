@@ -51,7 +51,7 @@ def test_bundled_scene_files_load():
     from vestaboard.config import get_settings
 
     settings = get_settings()
-    assert set(Scene.from_file(settings.scenes_dir / "clock.json").regions) == {"B", "C"}
+    assert set(Scene.from_file(settings.scenes_dir / "clock.json").regions) == {"B", "C", "D"}
     muni = Scene.from_file(settings.scenes_dir / "muni.json")
     assert set(muni.regions) == {"A", "B", "C", "D", "E", "F", "G"}
 

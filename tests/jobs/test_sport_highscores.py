@@ -8,7 +8,6 @@ from vestaboard.jobs.sport_highscores import (
     Team,
     display_name,
     game_status,
-    leader_colors,
     parse_games,
 )
 
@@ -47,12 +46,6 @@ def test_parse_games_maps_competitors_and_status():
     g = parse_games(payload)[0]
     assert g.home.abbr == "SA" and g.home.score == 90
     assert g.away.score == 94 and g.live and g.clock == "8:32"
-
-
-def test_leader_colors():
-    assert leader_colors(106, 107) == (codes.WHITE, codes.GREEN)
-    assert leader_colors(107, 106) == (codes.GREEN, codes.WHITE)
-    assert leader_colors(100, 100) == (codes.WHITE, codes.WHITE)
 
 
 def test_game_status():

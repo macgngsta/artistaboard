@@ -5,10 +5,11 @@ Data: rezarahiminia/worldcup2026 raw JSON (no API key). It carries live fields
 data is the pre-tournament snapshot (all ``notstarted``), so we fall back to the
 next upcoming match.
 
-Color coding: the leading team's score is highlighted (violet while live, blue
-once final), the trailing team's score white, a tie both white. Each team name
-gets a single accent pixel after it in that team's score color, so score and
-name link visually.
+Declarative: the scene (worldcup.json) owns the layout and the leader colouring
+(the ``leader`` rule, violet while live / blue once final). This job parses the
+feed, selects the match, supplies the data envelope, and adds two pixel-level
+touches the config can't express via a ``post_render`` hook: an accent pixel
+after each team name (in its score colour) and the winner's ``WIN`` banner.
 """
 
 from __future__ import annotations
@@ -17,11 +18,12 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import cached_property
+from typing import Any
 
 import httpx
 
 from .. import codes
-from ..font import Font
+from ..render import leader_color
 from ..scene import Scene
 from .base import Job
 
@@ -123,19 +125,10 @@ def stage_lines(m: Match) -> tuple[str, str]:
     return "STAGE 2", _STAGE_LINE3.get(m.stage, m.stage.upper())
 
 
-def score_colors(home_score: int, away_score: int, final: bool) -> tuple[int, int]:
-    """Leader's score is violet while live, blue once final; trailer/tie white."""
-    leader = codes.BLUE if final else codes.VIOLET
-    if home_score > away_score:
-        return leader, codes.WHITE
-    if away_score > home_score:
-        return codes.WHITE, leader
-    return codes.WHITE, codes.WHITE
-
-
 class WorldCupJob(Job):
     name = "world_cup"
     interval_seconds = 60
+    scene_name = "worldcup"
 
     def __init__(self, settings) -> None:
         super().__init__(settings)
@@ -143,16 +136,6 @@ class WorldCupJob(Job):
         self._last_switch: datetime | None = None
         self._last_scores: dict[str, tuple[int, int]] = {}
         self._current_id: str | None = None
-        self._last_sent: list[list[int]] | None = None
-
-    @cached_property
-    def _font(self) -> Font:
-        return Font.from_file(self.settings.font_path)
-
-    @cached_property
-    def _score_font(self) -> Font:
-        # World Cup scores stay to a single digit, so a 3x4 glyph fits per slot.
-        return Font.from_file(self.settings.fonts_dir / "bytesized3x4.json")
 
     @cached_property
     def _flags(self) -> dict[str, list[str]]:
@@ -205,54 +188,60 @@ class WorldCupJob(Job):
         teams = httpx.get(TEAMS_URL, timeout=15.0).json()
         return self.select_match(parse_matches(matches, teams), datetime.now())
 
-    def render(self, data: Match | None) -> Scene:
-        scene = Scene.from_file(self.settings.scenes_dir / "worldcup.json", font=self._font)
+    def bind(self, data: Match | None) -> dict[str, Any]:
         if data is None:
-            scene.write("NO MATCHES", region="F")
-            return scene
+            return {}  # scene's region-F fallback renders "NO MATCHES"
         m = data
         final = m.finished
         live = m.started and not m.finished
-        c_home, c_away = score_colors(m.home_score, m.away_score, final)
-
-        # A - J - B: the two big scores around a centred dash, leader-coloured.
-        scene.glyphs(str(m.home_score), region="A", on_code=c_home, font=self._score_font)
-        scene.glyphs("-", region="J", on_code=codes.WHITE, font=self._score_font)
-        scene.glyphs(str(m.away_score), region="B", on_code=c_away, font=self._score_font)
-
-        # C/D/E/K: metadata down the right (WORLD CUP / STAGE n / GROUP x / FINAL).
-        line2, line3 = stage_lines(m)
-        scene.write("WORLD CUP", region="C", align="right")
-        scene.write(line2, region="D", align="right")
-        scene.write(line3, region="E", align="right")
+        stage2, stage3 = stage_lines(m)
+        # G/I per-state text (the WIN banner for final games is drawn in post_render):
+        # live -> elapsed minute on G; pre-match -> kickoff date (G) and time (I).
         if final:
-            scene.write("FINAL", region="K", align="right")
-
-        # F/H: each team's name with an accent pixel in its score colour.
-        self._name_with_accent(scene, "F", m.home, m.home_code, c_home)
-        self._name_with_accent(scene, "H", m.away, m.away_code, c_away)
-
-        # G/I: per-state detail. Final -> a WIN banner on the winner's row; live ->
-        # the elapsed minute on G; pre-match -> kickoff date (G) and time (I).
-        if final:
-            if m.home_score > m.away_score:
-                self._win_banner(scene, "G")
-            elif m.away_score > m.home_score:
-                self._win_banner(scene, "I")
+            g_text = i_text = ""
         elif live:
-            scene.write(_elapsed(m), region="G", align="right")
-            # stoppage time (e.g. +05) isn't in the feed, so I stays blank while live
+            g_text, i_text = _elapsed(m), ""
         elif m.kickoff:
-            scene.write(m.kickoff.strftime("%b %d").upper(), region="G", align="right")
-            scene.write(m.kickoff.strftime("%H:%M"), region="I", align="right")
+            g_text, i_text = m.kickoff.strftime("%b %d").upper(), m.kickoff.strftime("%H:%M")
         else:
-            scene.write("TBD", region="G", align="right")
-        return scene
+            g_text, i_text = "TBD", ""
+        env: dict[str, Any] = {
+            "home.score": m.home_score,
+            "away.score": m.away_score,
+            "final": final,
+            "sep": "-",
+            "title": "WORLD CUP",
+            "stage2": stage2,
+            "stage3": stage3,
+            "home.name": _short(m.home, m.home_code, _NAME_WIDTH),
+            "away.name": _short(m.away, m.away_code, _NAME_WIDTH),
+            "g_text": g_text,
+            "i_text": i_text,
+        }
+        if final:
+            env["final_label"] = "FINAL"
+        return env
 
-    def _name_with_accent(self, scene: Scene, region: str, name: str, code: str, color: int) -> None:
+    def post_render(self, scene: Scene, data: Match | None) -> None:
+        if data is None:
+            return
+        m = data
+        final = m.finished
+        # An accent pixel right after each name, in that team's score colour.
+        self._accent(
+            scene, "F", _short(m.home, m.home_code, _NAME_WIDTH), leader_color(m.home_score, m.away_score, final=final)
+        )
+        self._accent(
+            scene, "H", _short(m.away, m.away_code, _NAME_WIDTH), leader_color(m.away_score, m.home_score, final=final)
+        )
+        # A WIN banner on the winner's row at full time.
+        if final and m.home_score > m.away_score:
+            self._win_banner(scene, "G")
+        elif final and m.away_score > m.home_score:
+            self._win_banner(scene, "I")
+
+    def _accent(self, scene: Scene, region: str, label: str, color: int) -> None:
         r = scene.regions[region]
-        label = _short(name, code, r.width - 1)  # leave the last cell for the accent
-        scene.write(label, region=region)
         accent_col = r.col0 + len(label)
         if accent_col <= r.col1:
             scene.set(r.row0, accent_col, color)
@@ -266,13 +255,9 @@ class WorldCupJob(Job):
             if start + i <= r.col1:
                 scene.set(r.row0, start + i, code)
 
-    def paint(self, client) -> dict | None:
-        chars = self.build().to_characters()
-        if chars == self._last_sent:  # avoid re-flapping the board when nothing changed
-            return None
-        result = client.send(chars)
-        self._last_sent = chars
-        return result
+
+# Region F/H are 12 wide; cap names at 11 so the accent pixel has a cell to land in.
+_NAME_WIDTH = 11
 
 
 def _short(name: str, code: str, width: int) -> str:

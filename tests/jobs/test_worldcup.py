@@ -8,7 +8,6 @@ from vestaboard.jobs.worldcup import (
     is_live,
     match_status,
     parse_matches,
-    score_colors,
     stage_lines,
 )
 
@@ -75,17 +74,6 @@ def test_match_status():
 def test_stage_lines():
     assert stage_lines(_match(stage="group", matchday="2", group="C")) == ("STAGE 2", "GROUP C")
     assert stage_lines(_match(stage="r16")) == ("STAGE 2", "ROUND 16")
-
-
-def test_score_colors_leader_highlighted():
-    # Live: leader violet, trailer white.
-    assert score_colors(2, 1, final=False) == (codes.VIOLET, codes.WHITE)
-    assert score_colors(1, 2, final=False) == (codes.WHITE, codes.VIOLET)
-    # Final: leader turns blue.
-    assert score_colors(2, 1, final=True) == (codes.BLUE, codes.WHITE)
-    # Tie: both white regardless of state.
-    assert score_colors(1, 1, final=False) == (codes.WHITE, codes.WHITE)
-    assert score_colors(0, 0, final=True) == (codes.WHITE, codes.WHITE)
 
 
 def _job_with_flags(flags):

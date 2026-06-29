@@ -1,8 +1,24 @@
-[
- "LLLLLLLLLLL#CCCCCCCCCC",
- "#AAAAAAA#JJJ#BBBBBBB##",
- "#AAAAAAA#JJJ#BBBBBBB##",
- "#AAAAAAA#JJJ#BBBBBBB##",
- "DDD#EE##########HH#GGG",
- "FFFFFFFFFF##IIIIIIIIII"
-]
+{
+  "grid": [
+    "LLLLLLLLLLL#CCCCCCCCCC",
+    "#AAAAAAA#JJJ#BBBBBBB##",
+    "#AAAAAAA#JJJ#BBBBBBB##",
+    "#AAAAAAA#JJJ#BBBBBBB##",
+    "DDD#EE##########HH#GGG",
+    "FFFFFFFFFF##IIIIIIIIII"
+  ],
+  "font": "3x3pixels",
+  "render": {
+    "L": {"bind": "league", "as": "text"},
+    "C": {"bind": "status", "as": "text", "align": "right"},
+    "A": {"bind": "away.score", "as": "glyphs", "align": "right", "color": {"rule": "leader", "team": "away"}},
+    "J": {"bind": "sep", "as": "glyphs", "align": "center", "color": "white"},
+    "B": {"bind": "home.score", "as": "glyphs", "align": "left", "color": {"rule": "leader", "team": "home"}},
+    "D": {"bind": "away.abbr", "as": "text", "transform": "upper"},
+    "E": {"bind": "away.score", "as": "text"},
+    "F": {"bind": "away.name", "as": "text"},
+    "G": {"bind": "home.abbr", "as": "text", "align": "right", "transform": "upper"},
+    "H": {"bind": "home.score", "as": "text", "align": "right"},
+    "I": {"bind": "home.name", "as": "text", "align": "right", "fallback": "NO GAMES"}
+  }
+}
