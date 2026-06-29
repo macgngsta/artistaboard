@@ -5,18 +5,42 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
-  check:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Check out the PR branch (not the detached merge ref) so we can push
+          # formatting back to it.
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv python install 3.13
       - run: uv sync --locked
-      - name: Lint
-        run: uv run ruff check . && uv run ruff format --check .
+
+      - name: Ruff auto-fix and format
+        run: |
+          uv run ruff check --fix .
+          uv run ruff format .
+
+      - name: Commit formatting (PRs only)
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "style: ruff auto-format"
+            git push
+          fi
+
+      - name: Lint (non-fixable issues)
+        run: uv run ruff check .
+
       - name: Test
         run: uv run pytest -q
