@@ -113,3 +113,5 @@ Bundled fonts are transcribed into JSON from upstream pixel fonts:
 - `fonts/3x3pixels.json` — a tiny 3×3 font, pixel-sampled from the *3x3 Pixels
   Regular* specimen ([onlinewebfonts.com](https://www.onlinewebfonts.com)). The
   colon is hand-set to vertical dots so `HH:MM` clocks stay legible.
+- `fonts/3by5.json` — a 3×5 font, pixel-sampled from the *3-by-5.ttf* specimen.
+  Uppercase + digits only; lowercase falls back to the uppercase glyph.
