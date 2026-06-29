@@ -1,8 +1,12 @@
 from datetime import datetime
 
 from vestaboard import codes
-from vestaboard.config import get_settings
+from vestaboard.config import Settings
 from vestaboard.jobs.clock import ClockJob
+
+
+def get_settings():
+    return Settings(_env_file=None)
 
 
 def test_clock_renders_big_time_in_region_b():
@@ -23,7 +27,5 @@ def test_clock_renders_small_time_and_tz_in_region_c():
 
 def test_clock_tz_label_is_configurable(monkeypatch):
     monkeypatch.setenv("CLOCK_TZ_LABEL", "ET")
-    from vestaboard.config import Settings
-
-    scene = ClockJob(Settings()).render(datetime(2024, 1, 1, 16, 34))
+    scene = ClockJob(Settings(_env_file=None)).render(datetime(2024, 1, 1, 16, 34))
     assert scene.grid[5][19:21] == codes.text_to_codes("ET")

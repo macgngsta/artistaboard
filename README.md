@@ -20,6 +20,14 @@ composable concepts:
   ```
 
   region `A` is the left 5 columns (the L badge), `B` is the right 16 (arrivals).
+  Use `.`, a space, or `#` for unassigned/filler cells (so you can draw walls/gaps).
+
+  The **job drives what each region holds** — either an array of big **glyphs**
+  (`scene.glyphs("16:34", region="B", on_code=WHITE, fill=VIOLET, invert=False)`)
+  or pure **alphanumerics** (`scene.text("08 MIN", region="D", align="right")`).
+  Both support `align` (`left`/`center`/`right`); `glyphs()` also supports `fill`
+  (shape-aware — non-rectangular regions keep their outline) and `invert` (carve
+  the letters out of the fill). `#`/`.`/space mark filler cells.
 - **Glyph / Font** — glyphs are defined as a JSON font map (`fonts/*.json`):
   `{"structure": "3x4", "glyphs": {"A": [0,1,0,1,1,1,1,1,1,1,0,1], ...}}`, each value a
   flattened row-major on/off pixel array. Two 3×4 fonts ship (`nanofont3x4`,
@@ -61,6 +69,12 @@ All via `.env` (see `.env.example`). Key vars:
 - `VESTABOARD_RW_KEY` — Vestaboard Read/Write API key. Required for `paint`/`run`.
 - `ACTIVE_JOB` — which job the daemon paints (`clock` | `muni` | `aircraft`).
 - `FIVEONEONE_API_KEY`, `MUNI_STOP_CODE` — for the Muni job.
+- `CLOCK_COLOR` / `MUNI_COLOR` — a color **name** (`red orange yellow green blue
+  violet`/`purple white black filled`) or code (`63`–`71`). Leave `MUNI_COLOR`
+  blank to use the line's own color.
+
+**Muni line colors** — the L badge auto-colors to match the line:
+`J`=yellow · `K`=blue · `L`=purple · `M`=green · `N`=blue · `T`=red.
 
 ## Docker
 
