@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from vestaboard import codes
-from vestaboard.config import Settings
-from vestaboard.jobs.clock import ClockJob
+from artistaboard import codes
+from artistaboard.config import Settings
+from artistaboard.jobs.clock import ClockJob
 
 
 def get_settings():

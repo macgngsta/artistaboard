@@ -1,4 +1,4 @@
-# vestaboard
+# artistaboard
 
 Drive a [Vestaboard](https://www.vestaboard.com/) (6 rows × 22 columns) with three
 composable concepts:
@@ -66,7 +66,7 @@ mise run
 | `spotify` | 20s | OAuth (see below) | "Now playing" — track + artists with the Spotify-green logo/accents. |
 
 **Spotify setup:** create an app at [developer.spotify.com](https://developer.spotify.com),
-put the client id/secret + redirect URI in `.env`, then run `vestaboard spotify-auth`
+put the client id/secret + redirect URI in `.env`, then run `artistaboard spotify-auth`
 once to get `SPOTIFY_REFRESH_TOKEN`.
 
 The `world_cup` badges are **color-coded by flag** (`data/flags.json` → nearest

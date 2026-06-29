@@ -2,7 +2,7 @@ import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from vestaboard.__main__ import schedule_ticks
+from artistaboard.__main__ import schedule_ticks
 
 
 def test_schedule_ticks_fires_immediately_and_on_interval():

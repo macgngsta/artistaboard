@@ -11,15 +11,15 @@ run = "uv sync --dev"
 
 [tasks.run]
 description = "Run the scheduler daemon for the active job"
-run = "uv run python -m vestaboard run"
+run = "uv run python -m artistaboard run"
 
 [tasks.preview]
 description = "Render a job to the terminal without touching the board: mise preview clock"
-run = "uv run python -m vestaboard preview"
+run = "uv run python -m artistaboard preview"
 
 [tasks.paint]
 description = "Render a job once and send it to the board: mise paint clock"
-run = "uv run python -m vestaboard paint"
+run = "uv run python -m artistaboard paint"
 
 [tasks.test]
 description = "Run the test suite"
@@ -35,7 +35,7 @@ run = ["uv run ruff check --fix .", "uv run ruff format ."]
 
 [tasks.docker-build]
 description = "Build the Docker image"
-run = "docker build -t vestaboard ."
+run = "docker build -t artistaboard ."
 
 [tasks.docker-up]
 description = "Start the daemon via docker compose"

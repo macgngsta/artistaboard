@@ -1,7 +1,7 @@
 import pytest
 
-from vestaboard import COLS, ROWS, codes
-from vestaboard.preview import render_preview
+from artistaboard import COLS, ROWS, codes
+from artistaboard.preview import render_preview
 
 
 def _blank():
