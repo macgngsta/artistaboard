@@ -113,13 +113,13 @@ def test_select_rotates_then_switches_on_score_change():
     assert after_goal.id == "b"
 
 
-def test_render_color_codes_badges_and_shows_score():
+def test_render_splits_badge_by_team_and_shows_score():
     job = _job_with_flags({"Scotland": ["blue", "white"], "Morocco": ["red", "green"]})
     scene = job.render(_match(home_score=2, away_score=0, elapsed="67"))
-    a, b = scene.regions["A"], scene.regions["B"]
-    a_colors = {scene.grid[r][c] for r, c in a.cells}
-    b_colors = {scene.grid[r][c] for r, c in b.cells}
-    assert a_colors == {codes.BLUE} and b_colors == {codes.RED}
+    cells = scene.regions["A"].cells
+    top = {scene.grid[r][c] for r, c in cells if r < 2}
+    bottom = {scene.grid[r][c] for r, c in cells if r >= 2}
+    assert top == {codes.BLUE} and bottom == {codes.RED}  # home top, away bottom
     flat = [c for row in scene.to_characters() for c in row]
     assert codes.char_to_code("2") in flat  # score rendered
 

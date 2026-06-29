@@ -86,13 +86,32 @@ def main(argv: list[str] | None = None) -> int:
     p_paint = sub.add_parser("paint", help="render a job once and send to the board")
     p_paint.add_argument("job", choices=job_names)
     sub.add_parser("run", help="run the scheduler daemon for ACTIVE_JOB")
+    sub.add_parser("spotify-auth", help="one-time OAuth to get a Spotify refresh token")
 
     args = parser.parse_args(argv)
     if args.command == "preview":
         return _preview(args.job)
     if args.command == "paint":
         return _paint(args.job)
+    if args.command == "spotify-auth":
+        return _spotify_auth()
     return _run()
+
+
+def _spotify_auth() -> int:
+    from .jobs.spotify import authorize_url, exchange_code
+
+    s = get_settings()
+    if not (s.spotify_client_id and s.spotify_client_secret):
+        print("Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env first.")
+        return 1
+    print("1) Open this URL and authorize:\n")
+    print("   " + authorize_url(s.spotify_client_id, s.spotify_redirect_uri))
+    print(f"\n2) You'll be redirected to {s.spotify_redirect_uri}?code=...")
+    code = input("3) Paste the `code` value here: ").strip()
+    token = exchange_code(code, s.spotify_client_id, s.spotify_client_secret, s.spotify_redirect_uri)
+    print(f"\nAdd this to your .env:\n\nSPOTIFY_REFRESH_TOKEN={token}")
+    return 0
 
 
 if __name__ == "__main__":

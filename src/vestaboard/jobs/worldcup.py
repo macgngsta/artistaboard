@@ -211,29 +211,26 @@ class WorldCupJob(Job):
     def render(self, data: Match | None) -> Scene:
         scene = Scene.from_file(self.settings.scenes_dir / "worldcup.json", font=self._font)
         if data is None:
-            scene.text("NO MATCHES", r=0, region="D", align="center")
+            scene.write("NO MATCHES", region="D")
             return scene
         m = data
         rng = random.Random(f"{m.home}-{m.away}")
         c_home, c_away = resolve_colors(self._team_colors(m.home), self._team_colors(m.away), rng)
 
-        scene.fill(c_home, region="A")  # hollow-square badges (shape-aware fill)
-        scene.fill(c_away, region="B")
+        # Single badge A shows both teams: top two rows = home, bottom two = away.
+        for r, c in scene.regions["A"].cells:
+            scene.set(r, c, c_home if r < 2 else c_away)
 
         line2, line3 = stage_lines(m)
-        scene.text("WORLD CUP", r=0, region="M", align="right")
-        scene.text(line2, r=1, region="M", align="right")
-        scene.text(line3, r=2, region="M", align="right")
+        scene.write("WORLD CUP", region="M", r=0, align="right")
+        scene.write(line2, region="M", r=1, align="right")
+        scene.write(line3, region="M", r=2, align="right")
 
-        now = datetime.now()
-        scene.set(4, 0, c_home)  # team color indicator
-        scene.text(_short(m.home, m.home_code, 14), c=2, region="D")
+        scene.write(_short(m.home, m.home_code, 16), region="D")
+        scene.write(_short(m.away, m.away_code, 18), region="E")
         if m.started:
-            scene.text(f"{m.home_score} : {m.away_score}", region="D", align="right")
-
-        scene.text(_short(m.away, m.away_code, 14), c=2, region="E")
-        scene.set(5, 0, c_away)
-        scene.text(match_status(m, now), region="E", align="right")
+            scene.write(f"{m.home_score}:{m.away_score}", region="F", align="right")
+        scene.write(match_status(m, datetime.now()), region="G", align="right")
         return scene
 
     def paint(self, client) -> dict | None:

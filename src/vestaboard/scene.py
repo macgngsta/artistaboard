@@ -103,6 +103,31 @@ class Scene:
             self.set(r, c, code)
         return self
 
+    def write(self, s: str, region: str | None = None, r: int = 0, align: str = "left") -> Scene:
+        """Like :meth:`text` but truncates ``s`` to the region width first."""
+        _, c0, _, c1 = self._origin(region)
+        return self.text(s[: c1 - c0 + 1], region=region, r=r, align=align)
+
+    def textbox(self, s: str, region: str | None = None, align: str = "left") -> Scene:
+        """Word-wrap ``s`` across the region's rows (truncating overflow)."""
+        r0, c0, r1, c1 = self._origin(region)
+        width, height = c1 - c0 + 1, r1 - r0 + 1
+        lines: list[str] = []
+        line = ""
+        for word in s.split():
+            candidate = f"{line} {word}".strip()
+            if len(candidate) <= width:
+                line = candidate
+            else:
+                if line:
+                    lines.append(line)
+                line = word[:width]
+        if line:
+            lines.append(line)
+        for i, text in enumerate(lines[:height]):
+            self.text(text, region=region, r=i, align=align)
+        return self
+
     def text(self, s: str, r: int = 0, c: int = 0, region: str | None = None, align: str = "left") -> Scene:
         """Render ``s`` as **pure alphanumerics** (one native character per cell)
         within ``region``, optionally aligned ``left``/``center``/``right``."""
