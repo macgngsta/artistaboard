@@ -1,4 +1,3 @@
-import random
 from datetime import datetime
 
 from vestaboard import codes
@@ -9,7 +8,7 @@ from vestaboard.jobs.worldcup import (
     is_live,
     match_status,
     parse_matches,
-    resolve_colors,
+    score_colors,
     stage_lines,
 )
 
@@ -78,13 +77,15 @@ def test_stage_lines():
     assert stage_lines(_match(stage="r16")) == ("STAGE 2", "ROUND 16")
 
 
-def test_resolve_colors_distinct_and_collision():
-    rng = random.Random("seed")
-    # distinct primaries: each keeps its own
-    assert resolve_colors(["blue", "white"], ["red", "green"], rng) == (codes.BLUE, codes.RED)
-    # same primary (red): home keeps red (fewer colors wins tiebreak), away gets a non-red color
-    home, away = resolve_colors(["red", "white"], ["red", "white", "blue"], rng)
-    assert home == codes.RED and away != codes.RED
+def test_score_colors_leader_highlighted():
+    # Live: leader violet, trailer white.
+    assert score_colors(2, 1, final=False) == (codes.VIOLET, codes.WHITE)
+    assert score_colors(1, 2, final=False) == (codes.WHITE, codes.VIOLET)
+    # Final: leader turns blue.
+    assert score_colors(2, 1, final=True) == (codes.BLUE, codes.WHITE)
+    # Tie: both white regardless of state.
+    assert score_colors(1, 1, final=False) == (codes.WHITE, codes.WHITE)
+    assert score_colors(0, 0, final=True) == (codes.WHITE, codes.WHITE)
 
 
 def _job_with_flags(flags):
@@ -113,17 +114,44 @@ def test_select_rotates_then_switches_on_score_change():
     assert after_goal.id == "b"
 
 
-def test_render_two_badges_and_kickoff_card():
-    job = _job_with_flags({"Scotland": ["blue", "white"], "Morocco": ["red", "green"]})
-    scene = job.render(_match())  # kickoff 06/28/2026 13:00
-    a = {scene.grid[r][c] for r, c in scene.regions["A"].cells}
-    b = {scene.grid[r][c] for r, c in scene.regions["B"].cells}
-    assert a == {codes.BLUE} and b == {codes.RED}  # home left, away right flag colors
-    flat = [c for row in scene.to_characters() for c in row]
-    for ch in "SCOTLAND":  # home team name on its row
-        assert codes.char_to_code(ch) in flat
-    assert codes.char_to_code("J") in flat  # JUN date
-    assert codes.char_to_code(":") in flat  # 13:00 kickoff time
+def _colors(scene, label):
+    return {scene.grid[r][c] for r, c in scene.regions[label].cells}
+
+
+def _row_text(scene, label):
+    r = scene.regions[label]
+    return "".join(codes.CODE_TO_CHAR.get(scene.grid[r.row0][c], " ") for c in range(r.col0, r.col1 + 1))
+
+
+def test_render_prematch_names_dates_and_white_accents():
+    job = WorldCupJob(Settings(_env_file=None))
+    scene = job.render(_match())  # 0-0 notstarted, kickoff 06/28 13:00
+    assert _row_text(scene, "F").startswith("SCOTLAND")
+    assert _row_text(scene, "H").startswith("MOROCCO")
+    # accent pixel right after each name; a 0-0 tie makes both white
+    f = scene.regions["F"]
+    assert scene.grid[f.row0][f.col0 + len("SCOTLAND")] == codes.WHITE
+    assert "JUN 28" in _row_text(scene, "G")
+    assert "13:00" in _row_text(scene, "I")
+
+
+def test_render_live_leader_violet_and_elapsed_clock():
+    job = WorldCupJob(Settings(_env_file=None))
+    scene = job.render(_match(home_score=2, away_score=1, elapsed="67"))
+    assert codes.VIOLET in _colors(scene, "A")  # home leads -> violet while live
+    assert codes.VIOLET not in _colors(scene, "B")  # away trails -> white
+    assert "67'" in _row_text(scene, "G")  # elapsed minute on G, no banner
+    assert codes.GREEN not in _colors(scene, "G")
+
+
+def test_render_final_blue_leader_win_banner_and_final_label():
+    job = WorldCupJob(Settings(_env_file=None))
+    scene = job.render(_match(home_score=1, away_score=3, finished=True, elapsed="90"))
+    assert codes.BLUE in _colors(scene, "B")  # away leads -> blue once final
+    assert _row_text(scene, "K").strip() == "FINAL"
+    # winner (away) gets the green-flanked WIN banner on its row I; home row G does not
+    assert "WIN" in _row_text(scene, "I") and codes.GREEN in _colors(scene, "I")
+    assert codes.GREEN not in _colors(scene, "G")
 
 
 def test_paint_skips_when_unchanged():
