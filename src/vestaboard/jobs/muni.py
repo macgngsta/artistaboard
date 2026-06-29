@@ -75,7 +75,10 @@ def parse_stop_monitoring(payload: dict, now: datetime, line: str | None = None)
 class MuniJob(Job):
     name = "muni"
     interval_seconds = 30
-    scene_name = "muni"
+    # The "transit" scene is operator-agnostic (badge + countdown + arrivals +
+    # operator/direction/destination), so a future NYC-MTA job can reuse it by
+    # binding the same envelope — the way the sport jobs share a layout shape.
+    scene_name = "transit"
 
     def fetch(self) -> MuniArrivals:
         key = self.settings.fiveoneone_api_key
