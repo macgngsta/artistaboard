@@ -29,7 +29,7 @@ MUNI_LINE_COLORS: dict[str, str] = {
 }
 DEFAULT_LINE_COLOR = "violet"
 # The three arrival rows in scenes/muni.json, top to bottom.
-ARRIVAL_REGIONS = ("D", "E", "F")
+ARRIVAL_REGIONS = ("C", "D", "E")
 # Words to drop when shortening a SIRI destination name to fit the board.
 _DEST_NOISE = ("METRO", "STATION", "STA")
 
@@ -80,6 +80,11 @@ class MuniJob(Job):
     def _font(self) -> Font:
         return Font.from_file(self.settings.font_path)
 
+    @cached_property
+    def _score_font(self) -> Font:
+        # nanofont's digits are 3 rows tall, so the big headline fits the badge.
+        return Font.from_file(self.settings.fonts_dir / "nanofont3x4.json")
+
     def fetch(self) -> MuniArrivals:
         key = self.settings.fiveoneone_api_key
         stop = self.settings.muni_stop_code
@@ -105,14 +110,15 @@ class MuniJob(Job):
             badge = codes.resolve_color(MUNI_LINE_COLORS.get(LINE_LABEL, DEFAULT_LINE_COLOR))
         scene.glyphs(LINE_LABEL, region="A", on_code=codes.WHITE, fill=badge)
 
-        # B: the soonest arrival as big block glyphs (or "--" when no data).
+        # B: the soonest arrival as a big red headline (or "--" when no data),
+        # in the 3-row score font so it fits the badge height.
         headline = f"{data.minutes[0]:02d}" if data.minutes else "--"
-        scene.glyphs(headline, region="B", on_code=codes.WHITE)
+        scene.glyphs(headline, region="B", on_code=codes.RED, align="center", font=self._score_font)
 
-        # D/E/F: pure alphanumerics — "NN MIN" (the space lands in the gap column).
+        # C/D/E: pure alphanumerics — "NN MIN" (one line per upcoming arrival).
         for region, mins in zip(ARRIVAL_REGIONS, data.minutes, strict=False):
             scene.text(f"{mins:02d} MIN", region=region)
 
-        # C: destination along the bottom, right-aligned.
-        scene.text(data.destination, region="C", align="right")
+        # F: destination along the bottom, right-aligned.
+        scene.text(data.destination, region="F", align="right")
         return scene

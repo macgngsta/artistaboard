@@ -71,21 +71,21 @@ def test_render_populates_all_regions():
     a_codes = {chars[r][c] for r in range(a.row0, a.row1 + 1) for c in range(a.col0, a.col1 + 1)}
     assert codes.VIOLET in a_codes and codes.WHITE in a_codes
 
-    # D/E/F: each row carries its minutes + "MIN"
-    for region, mins in zip(("D", "E", "F"), (8, 25, 33), strict=True):
+    # C/D/E: each row carries its minutes + "MIN"
+    for region, mins in zip(("C", "D", "E"), (8, 25, 33), strict=True):
         reg = scene.regions[region]
         row = chars[reg.row0]
         assert row[reg.col0 : reg.col0 + 2] == codes.text_to_codes(f"{mins:02d}")
         assert row[reg.col0 + 3 : reg.col0 + 6] == codes.text_to_codes("MIN")
 
-    # C: destination text appears on the bottom row
+    # F: destination text appears on the bottom row
     flat = [c for r in chars for c in r]
     assert codes.char_to_code("E") in flat and codes.char_to_code("O") in flat
 
 
 def test_render_no_data_shows_dashes():
     scene = MuniJob(_settings()).render(MuniArrivals(minutes=[], destination=""))
-    # "--" renders as big white glyphs in region B; no MIN rows are drawn.
+    # "--" renders as the big red headline glyphs in region B; no MIN rows are drawn.
     b = scene.regions["B"]
-    assert any(scene.grid[r][c] == codes.WHITE for r in range(b.row0, b.row1 + 1) for c in range(b.col0, b.col1 + 1))
+    assert any(scene.grid[r][c] == codes.RED for r in range(b.row0, b.row1 + 1) for c in range(b.col0, b.col1 + 1))
     assert codes.char_to_code("M") not in [c for row in scene.to_characters() for c in row]
