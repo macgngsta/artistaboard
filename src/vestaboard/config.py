@@ -59,17 +59,25 @@ class Settings(BaseSettings):
     fiveoneone_api_key: str = ""
     muni_stop_code: str = ""
 
-    # Aircraft job (stub).
-    aircraft_lat: float = 37.7749
-    aircraft_lon: float = -122.4194
-
     # World Cup job: only show a specific group (e.g. "C") when set; rotate among
     # live matches every N seconds (or immediately on a score change).
     worldcup_group: str = ""
     worldcup_rotate_seconds: int = 300
 
-    # NBA job: rotate among live games every N seconds (or on a score change).
-    nba_rotate_seconds: int = 300
+    # Sport high-scores job: ESPN sport/league path + rotation cadence.
+    sport_league: str = "basketball/nba"
+    sport_rotate_seconds: int = 300
+
+    # Sport low-scores job: ESPN sport/league path for sports whose scores stay
+    # to 1-2 digits (baseball, soccer, hockey). Shares sport_rotate_seconds.
+    sport_lowscore_league: str = "baseball/mlb"
+
+    # Spotify "now playing" job (OAuth). Create an app at developer.spotify.com,
+    # then run `vestaboard spotify-auth` to obtain the refresh token.
+    spotify_client_id: str = ""
+    spotify_client_secret: str = ""
+    spotify_refresh_token: str = ""
+    spotify_redirect_uri: str = "http://127.0.0.1:8888/callback"
 
     @property
     def scenes_dir(self) -> Path:
@@ -86,6 +94,10 @@ class Settings(BaseSettings):
     @property
     def flags_path(self) -> Path:
         return self.data_dir / "data" / "flags.json"
+
+    @property
+    def team_states_path(self) -> Path:
+        return self.data_dir / "data" / "team_states.json"
 
 
 @lru_cache

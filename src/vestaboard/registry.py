@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 from .config import Settings
-from .jobs.aircraft import AircraftJob
 from .jobs.base import Job
 from .jobs.clock import ClockJob
 from .jobs.muni import MuniJob
-from .jobs.nba import NBAJob
+from .jobs.sport_highscores import SportHighScoresJob
+from .jobs.sport_lowscores import SportLowScoresJob
+from .jobs.spotify import SpotifyJob
 from .jobs.worldcup import WorldCupJob
 
 JOB_TYPES: dict[str, type[Job]] = {
     ClockJob.name: ClockJob,
     MuniJob.name: MuniJob,
     WorldCupJob.name: WorldCupJob,
-    NBAJob.name: NBAJob,
-    AircraftJob.name: AircraftJob,
+    SportHighScoresJob.name: SportHighScoresJob,
+    SportLowScoresJob.name: SportLowScoresJob,
+    SpotifyJob.name: SpotifyJob,
 }
 
 

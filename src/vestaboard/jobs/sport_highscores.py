@@ -1,12 +1,16 @@
-"""NBA job: a live game scoreboard with score-driven badge colors.
+"""Sport high-scores job: a live scoreboard for high-scoring sports (NBA, etc.).
 
-Data: ESPN's public scoreboard JSON (no API key). Badge color is set by the
-score — the leading team is green, the other white (a tie is both white). Two
-fixed badge shapes (from the mockup) are recolored per game.
+Data: ESPN's public scoreboard JSON (no API key) for the configured
+``SPORT_LEAGUE`` (e.g. ``basketball/nba``). The leading team's big score (A/B)
+is green, the other white (a tie is both white). Layout per region:
+  A/B  big score (nanofont, fits the 3-row badge), left/right
+  C    game status/clock        D/G  team state (2-letter)
+  E/H  score (small)            F/I  team name (or abbreviation if > 9 chars)
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import cached_property
@@ -18,7 +22,8 @@ from ..font import Font
 from ..scene import Scene
 from .base import Job
 
-SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/{league}/scoreboard"
+NAME_WIDTH = 9  # region F/I width
 
 
 @dataclass(frozen=True)
@@ -34,7 +39,7 @@ class Game:
     home: Team
     away: Team
     state: str  # pre / in / post
-    detail: str  # e.g. "Final", "8:32 - 3rd"
+    detail: str
     clock: str
     period: int
     start: datetime | None
@@ -94,7 +99,6 @@ def leader_colors(home_score: int, away_score: int) -> tuple[int, int]:
 
 
 def game_status(g: Game) -> str:
-    """Short status for the corner (≤6 chars)."""
     if g.state == "post":
         return "FINAL"
     if g.state == "in":
@@ -102,8 +106,14 @@ def game_status(g: Game) -> str:
     return g.start.strftime("%H:%M") if g.start else "TBD"
 
 
-class NBAJob(Job):
-    name = "nba"
+def display_name(team: Team) -> str:
+    """The team name, or its abbreviation when the name doesn't fit."""
+    name = team.name.upper()
+    return name if len(name) <= NAME_WIDTH else team.abbr.upper()
+
+
+class SportHighScoresJob(Job):
+    name = "sport_highscores"
     interval_seconds = 60
 
     def __init__(self, settings) -> None:
@@ -118,11 +128,22 @@ class NBAJob(Job):
     def _font(self) -> Font:
         return Font.from_file(self.settings.font_path)
 
+    @cached_property
+    def _score_font(self) -> Font:
+        # nanofont's digits are 3 rows tall, so the big score fits the badge.
+        return Font.from_file(self.settings.fonts_dir / "nanofont3x4.json")
+
+    @cached_property
+    def _states(self) -> dict[str, str]:
+        data = json.loads(self.settings.team_states_path.read_text())
+        return data.get(self.settings.sport_league, {})
+
+    def _state(self, abbr: str) -> str:
+        return self._states.get(abbr, abbr[:2])
+
     def _pool(self, games: list[Game]) -> list[Game]:
         live = [g for g in games if g.live]
-        if live:
-            return live
-        return games[:1]  # ESPN already returns the most relevant slate
+        return live or games[:1]
 
     def select_game(self, games: list[Game], now: datetime) -> Game | None:
         pool = self._pool(games)
@@ -135,7 +156,7 @@ class NBAJob(Job):
         for g in pool:
             self._last_scores[g.id] = (g.home.score, g.away.score)
 
-        rotate = timedelta(seconds=self.settings.nba_rotate_seconds)
+        rotate = timedelta(seconds=self.settings.sport_rotate_seconds)
         if changed:
             chosen = changed[0]
             self._last_switch = now
@@ -149,26 +170,31 @@ class NBAJob(Job):
         return chosen
 
     def fetch(self) -> Game | None:
-        payload = httpx.get(SCOREBOARD_URL, timeout=15.0).json()
+        url = SCOREBOARD_URL.format(league=self.settings.sport_league)
+        payload = httpx.get(url, timeout=15.0).json()
         return self.select_game(parse_games(payload), datetime.now())
 
     def render(self, data: Game | None) -> Scene:
-        scene = Scene.from_file(self.settings.scenes_dir / "nba.json", font=self._font)
+        scene = Scene.from_file(self.settings.scenes_dir / "sport_highscores.json", font=self._font)
         if data is None:
-            scene.text("NO GAMES", r=2, align="center")
+            scene.write("NO GAMES", region="F", align="right")
             return scene
         top, bottom = data.home, data.away
         c_top, c_bottom = leader_colors(top.score, bottom.score)
-        scene.fill(c_top, region="A")  # shape-aware: recolors the badge cells
-        scene.fill(c_bottom, region="B")
 
-        # top team: stats right-aligned, rows 0-2
-        scene.text(game_status(data), r=0, align="right")
-        scene.text(f"{top.score} {top.abbr}", r=1, align="right")
-        scene.text(_name(top.name, 9), r=2, align="right")
-        # bottom team: stats left-aligned, rows 4-5
-        scene.text(f"{bottom.abbr} {bottom.score}", r=4, c=0)
-        scene.text(_name(bottom.name, 10), r=5, c=0)
+        # A/B: big score in the leader color (no leading zero)
+        scene.glyphs(str(top.score), region="A", on_code=c_top, align="left", font=self._score_font)
+        scene.glyphs(str(bottom.score), region="B", on_code=c_bottom, align="right", font=self._score_font)
+
+        # top team (right-aligned): status C, state D, score E, name F
+        scene.write(game_status(data), region="C", align="right")
+        scene.write(self._state(top.abbr), region="D", align="right")
+        scene.write(str(top.score), region="E", align="right")
+        scene.write(display_name(top), region="F", align="right")
+        # bottom team (left-aligned): state G, score H, name I
+        scene.write(self._state(bottom.abbr), region="G")
+        scene.write(str(bottom.score), region="H")
+        scene.write(display_name(bottom), region="I")
         return scene
 
     def paint(self, client) -> dict | None:
@@ -178,8 +204,3 @@ class NBAJob(Job):
         result = client.send(chars)
         self._last_sent = chars
         return result
-
-
-def _name(name: str, width: int) -> str:
-    name = name.upper()
-    return name if len(name) <= width else name[:width]
