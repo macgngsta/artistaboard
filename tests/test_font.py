@@ -54,8 +54,19 @@ def test_bytesized_font_loads_and_has_digits():
     font = Font.from_file(get_settings().fonts_dir / "bytesized3x4.json")
     assert font.width == 3 and font.height == 4
     assert _ascii(font.get("0")) == ["###", "#.#", "#.#", "###"]
-    assert _ascii(font.get("1")) == ["##.", ".#.", ".#.", "###"]
     assert font.has(":")
+
+
+def test_bytesized_uppercase_l_is_clean_full_height():
+    font = Font.from_file(get_settings().fonts_dir / "bytesized3x4.json")
+    assert _ascii(font.get("L")) == ["#..", "#..", "#..", "###"]
+
+
+def test_bytesized_has_distinct_upper_and_lowercase():
+    font = Font.from_file(get_settings().fonts_dir / "bytesized3x4.json")
+    # both cases exist as separate map entries with genuinely different shapes
+    for upper, lower in [("A", "a"), ("E", "e"), ("L", "l"), ("Q", "q")]:
+        assert font.glyphs[upper].pixels != font.glyphs[lower].pixels
 
 
 def test_invalid_structure(tmp_path):

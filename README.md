@@ -96,4 +96,6 @@ mise lint-fix       # auto-fix
 Bundled 3×4 fonts are transcribed into JSON from upstream pixel fonts:
 
 - `fonts/nanofont3x4.json` — from [Michaelangel007/nanofont3x4](https://github.com/Michaelangel007/nanofont3x4).
-- `fonts/bytesized3x4.json` — from [balt-dev/bytesized-gf](https://github.com/balt-dev/bytesized-gf) (OFL-1.1).
+- `fonts/bytesized3x4.json` — [balt-dev/bytesized-gf](https://github.com/balt-dev/bytesized-gf)
+  (OFL-1.1); alphanumerics transcribed from the project's specimen so upper- and
+  lowercase are distinct (`A`/`a`, `L`/`l`, …), punctuation from the repo glyphs.
