@@ -104,9 +104,12 @@ mise lint-fix       # auto-fix
 
 ## Credits
 
-Bundled 3×4 fonts are transcribed into JSON from upstream pixel fonts:
+Bundled fonts are transcribed into JSON from upstream pixel fonts:
 
 - `fonts/nanofont3x4.json` — from [Michaelangel007/nanofont3x4](https://github.com/Michaelangel007/nanofont3x4).
 - `fonts/bytesized3x4.json` — [balt-dev/bytesized-gf](https://github.com/balt-dev/bytesized-gf)
   (OFL-1.1); alphanumerics transcribed from the project's specimen so upper- and
   lowercase are distinct (`A`/`a`, `L`/`l`, …), punctuation from the repo glyphs.
+- `fonts/3x3pixels.json` — a tiny 3×3 font, pixel-sampled from the *3x3 Pixels
+  Regular* specimen ([onlinewebfonts.com](https://www.onlinewebfonts.com)). The
+  colon is hand-set to vertical dots so `HH:MM` clocks stay legible.
