@@ -1,4 +1,4 @@
-"""Muni job: next SF Muni L Taraval arrivals via the 511.org SIRI API."""
+"""Muni job: next SF Muni Metro arrivals (configurable line) via 511.org SIRI."""
 
 from __future__ import annotations
 
@@ -12,11 +12,10 @@ from .. import codes
 from .base import Job
 
 SIRI_URL = "http://api.511.org/transit/StopMonitoring"
-LINE_LABEL = "L"
 MAX_ARRIVALS = 3
 
 # Official SF Muni Metro line colors, mapped to the nearest Vestaboard color.
-# Used to color the badge so it matches the line (e.g. the L Taraval is purple).
+# The badge takes the configured line's color (e.g. the L Taraval is purple).
 MUNI_LINE_COLORS: dict[str, str] = {
     "J": "yellow",  # Church (tan/olive)
     "K": "blue",  # Ingleside
@@ -91,16 +90,18 @@ class MuniJob(Job):
         resp.raise_for_status()
         # 511 serves JSON with a UTF-8 BOM; httpx .json() trips on it.
         payload = httpx.Response(200, content=resp.content.decode("utf-8-sig").encode()).json()
-        return parse_stop_monitoring(payload, datetime.now(UTC), line=LINE_LABEL)
+        return parse_stop_monitoring(payload, datetime.now(UTC), line=self.settings.muni_line.upper())
 
     def bind(self, data: MuniArrivals) -> dict[str, Any]:
-        # The badge fills with the line's own colour (violet for the L) unless
-        # overridden; the scene carves the route letter out of it (color: blank).
+        # The badge fills with the configured line's own colour (the user picks the
+        # line; L→violet, T→red) unless muni_color overrides it; the scene carves
+        # the route letter out of it (color: blank).
+        line = self.settings.muni_line.upper()
         badge = self.settings.muni_color
         if badge is None:
-            badge = codes.resolve_color(MUNI_LINE_COLORS.get(LINE_LABEL, DEFAULT_LINE_COLOR))
+            badge = codes.resolve_color(MUNI_LINE_COLORS.get(line, DEFAULT_LINE_COLOR))
         env: dict[str, Any] = {
-            "line": LINE_LABEL,
+            "line": line,
             "badge_color": badge,
             "operator": "SFMUNI",
             "direction": data.direction,

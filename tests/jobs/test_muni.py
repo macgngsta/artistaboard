@@ -104,6 +104,16 @@ def test_render_imminent_arrival_is_red():
     assert codes.RED in _region_codes(scene, "B")
 
 
+def test_badge_color_follows_configured_line():
+    arrivals = MuniArrivals(minutes=[8], destination="X", direction="IB")
+    # The chosen line drives the badge colour: L→violet (default), T→red.
+    assert codes.VIOLET in _region_codes(MuniJob(_settings()).render(arrivals), "A")
+    assert codes.RED in _region_codes(MuniJob(_settings(muni_line="T")).render(arrivals), "A")
+    # An explicit muni_color still overrides the line colour.
+    override = MuniJob(_settings(muni_line="T", muni_color="green")).render(arrivals)
+    assert codes.GREEN in _region_codes(override, "A")
+
+
 def test_render_no_data_is_blank_headline():
     scene = MuniJob(_settings()).render(MuniArrivals(minutes=[], destination=""))
     # No arrivals: no countdown glyph in B and the C/D "NN MIN" rows stay blank.

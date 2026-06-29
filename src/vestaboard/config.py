@@ -55,9 +55,11 @@ class Settings(BaseSettings):
     # Small timezone label shown in the clock's corner (2 chars, e.g. PT/ET).
     clock_tz_label: str = "PT"
 
-    # SF Muni (511.org).
+    # SF Muni (511.org). muni_line picks which route to show; the badge takes that
+    # line's colour (L→violet, T→red, …) unless muni_color overrides it.
     fiveoneone_api_key: str = ""
     muni_stop_code: str = ""
+    muni_line: str = "L"
 
     # World Cup job: only show a specific group (e.g. "C") when set; rotate among
     # live matches every N seconds (or immediately on a score change).
