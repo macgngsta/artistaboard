@@ -97,6 +97,56 @@ def _transform(text: str, kind: str | None) -> str:
     return text
 
 
+# -- variable extraction ---------------------------------------------------------
+# Which envelope keys a scene's render map consumes. Today this contract is
+# implicit (a scene only works with a job whose bind() emits matching keys); making
+# it explicit lets a designer/binder show "this scene needs: time, tz" and validate.
+
+
+def _rule_variables(rule: str, params: dict[str, Any]) -> list[tuple[str, str]]:
+    """The envelope keys a named colour rule reads, as (name, kind) pairs."""
+    if rule == "leader":
+        team = params.get("team", "home")
+        other = "away" if team == "home" else "home"
+        return [(f"{team}.score", "number"), (f"{other}.score", "number"), ("final", "flag")]
+    if rule == "imminent" and "field" in params:
+        return [(params["field"], "number")]
+    return []
+
+
+def scene_variables(document: dict | list) -> list[dict[str, Any]]:
+    """The data-envelope variables a scene's ``render`` map needs.
+
+    One descriptor per distinct variable: ``{name, kind, required, fallback}`` where
+    ``kind`` is ``text``/``number``/``color``/``flag`` and ``required`` is true when
+    the binding that introduces it has no ``fallback``. Scanned from each region's
+    ``bind`` key, ``{"data": k}`` colour specs, and the keys implied by named rules.
+    A pure function over the scene document — no rendering, no I/O.
+    """
+    render = document.get("render", {}) if isinstance(document, dict) else {}
+    out: dict[str, dict[str, Any]] = {}
+
+    def add(name: str, kind: str, *, required: bool, fallback: Any = None) -> None:
+        cur = out.get(name)
+        if cur is None:
+            out[name] = {"name": name, "kind": kind, "required": required, "fallback": fallback}
+        elif required and not cur["required"]:
+            # a stricter (no-fallback) use of the same variable wins
+            cur.update(required=True, fallback=None)
+
+    for cfg in render.values():
+        if "bind" in cfg:
+            add(cfg["bind"], "text", required="fallback" not in cfg, fallback=cfg.get("fallback"))
+        color = cfg.get("color")
+        if isinstance(color, dict):
+            if "data" in color:
+                add(color["data"], "color", required=True)
+            elif "rule" in color:
+                for name, kind in _rule_variables(color["rule"], color):
+                    add(name, kind, required=True)
+    return list(out.values())
+
+
 def render_scene(scene: Scene, data: dict[str, Any], settings: Settings) -> Scene:
     """Paint ``scene`` from its ``render`` config against the ``data`` envelope."""
     default_font = load_font(settings, scene.font_name) if scene.font_name else scene.font
