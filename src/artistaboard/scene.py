@@ -70,7 +70,15 @@ class Scene:
 
     @classmethod
     def from_file(cls, path: str | Path, font: Font | None = None) -> Scene:
-        raw = json.loads(Path(path).read_text())
+        return cls.from_dict(json.loads(Path(path).read_text()), font=font)
+
+    @classmethod
+    def from_dict(cls, raw: list | dict, font: Font | None = None) -> Scene:
+        """Build a scene from already-parsed JSON — the bare-array or object form.
+
+        The same document the renderer consumes, so a stored scene blob (e.g. from
+        a database) loads identically to one read from ``scenes/*.json``.
+        """
         is_obj = isinstance(raw, dict)
         grid = raw["grid"] if is_obj else raw
         scene = cls(regions=_parse_regions(grid), font=font)

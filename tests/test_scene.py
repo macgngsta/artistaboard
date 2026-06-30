@@ -47,6 +47,24 @@ def test_string_row_format_parses_like_lists(tmp_path):
     assert (b.row0, b.col0, b.row1, b.col1) == (0, 6, 5, 21)
 
 
+def test_from_dict_object_form_carries_render_and_font():
+    raw = {
+        "grid": ["AAAAA.BBBBBBBBBBBBBBBB"] * ROWS,
+        "font": "bytesized3x4",
+        "render": {"B": {"bind": "time", "as": "text"}},
+    }
+    scene = Scene.from_dict(raw)
+    assert set(scene.regions) == {"A", "B"}
+    assert scene.render_config == {"B": {"bind": "time", "as": "text"}}
+    assert scene.font_name == "bytesized3x4"
+
+
+def test_from_dict_bare_array_is_geometry_only():
+    scene = Scene.from_dict(["AAAAA.BBBBBBBBBBBBBBBB"] * ROWS)
+    assert set(scene.regions) == {"A", "B"}
+    assert scene.render_config == {} and scene.font_name is None
+
+
 def test_bundled_scene_files_load():
     from artistaboard.config import get_settings
 
