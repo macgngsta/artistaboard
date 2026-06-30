@@ -25,6 +25,7 @@ import httpx
 
 from .. import codes
 from ..render import leader_color
+from ..rotation import RotationState, select
 from ..scene import Scene
 from .base import Job
 
@@ -159,10 +160,7 @@ class WorldCupJob(Job):
 
     def __init__(self, settings) -> None:
         super().__init__(settings)
-        self._rotation_index = 0
-        self._last_switch: datetime | None = None
-        self._last_scores: dict[str, tuple[int, int]] = {}
-        self._current_id: str | None = None
+        self._rotation = RotationState()
 
     @cached_property
     def _flags(self) -> dict[str, list[str]]:
@@ -188,25 +186,16 @@ class WorldCupJob(Job):
         pool = self._pool(matches, now)
         if not pool:
             return None
-        by_id = {m.id: m for m in pool}
-        # A score change in any pool match wins the board immediately.
-        changed = [
-            m for m in pool if self._last_scores.get(m.id, (m.home_score, m.away_score)) != (m.home_score, m.away_score)
-        ]
-        for m in pool:
-            self._last_scores[m.id] = (m.home_score, m.away_score)
-
-        rotate = timedelta(seconds=self.settings.worldcup_rotate_seconds)
-        if changed:
-            chosen = changed[0]
-            self._last_switch = now
-        elif self._current_id in by_id and self._last_switch and now - self._last_switch < rotate:
-            chosen = by_id[self._current_id]  # hold current
-        else:
-            self._rotation_index = (self._rotation_index + 1) % len(pool)
-            chosen = pool[self._rotation_index]
-            self._last_switch = now
-        self._current_id = chosen.id
+        # A score change in any pool match wins the board immediately; otherwise
+        # hold the current match until the rotate cadence elapses, then advance.
+        chosen, self._rotation = select(
+            pool,
+            key=lambda m: m.id,
+            signal=lambda m: (m.home_score, m.away_score),
+            state=self._rotation,
+            now=now,
+            rotate_seconds=self.settings.worldcup_rotate_seconds,
+        )
         return chosen
 
     # -- job hooks -------------------------------------------------------------

@@ -21,10 +21,20 @@ JOB_TYPES: dict[str, type[Job]] = {
 }
 
 
-def build_job(name: str, settings: Settings) -> Job:
+def build_job(name: str, settings: Settings, **overrides: object) -> Job:
+    """Instantiate a job by name.
+
+    ``overrides`` derive a per-call :class:`Settings` (via ``model_copy``) so a
+    caller can supply per-entry/per-board config — e.g. a pipeline running the
+    same job for two boards with different ``worldcup_group`` — without touching
+    the process-global ``get_settings()`` singleton. Values are taken as-is (no
+    re-validation), so pass already-typed values.
+    """
     try:
         job_type = JOB_TYPES[name]
     except KeyError as exc:
         known = ", ".join(sorted(JOB_TYPES))
         raise ValueError(f"unknown job {name!r}; known jobs: {known}") from exc
+    if overrides:
+        settings = settings.model_copy(update=overrides)
     return job_type(settings)

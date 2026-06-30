@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import cached_property
 from typing import Any
 
 import httpx
 
+from ..rotation import RotationState, select
 from .base import Job
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/{league}/scoreboard"
@@ -107,10 +108,7 @@ class SportHighScoresJob(Job):
 
     def __init__(self, settings) -> None:
         super().__init__(settings)
-        self._rotation_index = 0
-        self._last_switch: datetime | None = None
-        self._last_scores: dict[str, tuple[int, int]] = {}
-        self._current_id: str | None = None
+        self._rotation = RotationState()
 
     @cached_property
     def _states(self) -> dict[str, str]:
@@ -128,24 +126,16 @@ class SportHighScoresJob(Job):
         pool = self._pool(games)
         if not pool:
             return None
-        by_id = {g.id: g for g in pool}
-        changed = [
-            g for g in pool if self._last_scores.get(g.id, (g.home.score, g.away.score)) != (g.home.score, g.away.score)
-        ]
-        for g in pool:
-            self._last_scores[g.id] = (g.home.score, g.away.score)
-
-        rotate = timedelta(seconds=self.settings.sport_rotate_seconds)
-        if changed:
-            chosen = changed[0]
-            self._last_switch = now
-        elif self._current_id in by_id and self._last_switch and now - self._last_switch < rotate:
-            chosen = by_id[self._current_id]
-        else:
-            self._rotation_index = (self._rotation_index + 1) % len(pool)
-            chosen = pool[self._rotation_index]
-            self._last_switch = now
-        self._current_id = chosen.id
+        # A score change in any pool game wins the board immediately; otherwise
+        # hold the current game until the rotate cadence elapses, then advance.
+        chosen, self._rotation = select(
+            pool,
+            key=lambda g: g.id,
+            signal=lambda g: (g.home.score, g.away.score),
+            state=self._rotation,
+            now=now,
+            rotate_seconds=self.settings.sport_rotate_seconds,
+        )
         return chosen
 
     def fetch(self) -> Game | None:
