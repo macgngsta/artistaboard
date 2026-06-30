@@ -95,6 +95,9 @@ class PipelineEntry(SQLModel, table=True):
     source_type: str = "job"  # job / scene
     job_name: str | None = None
     scene_id: str | None = Field(default=None, foreign_key="scenes.id")
+    # For scene entries: a job whose bind() envelope feeds the scene's variables
+    # (auto-bound by name). None -> the scene renders static (fallbacks only).
+    data_source: str | None = None
 
 
 class BoardRun(SQLModel, table=True):
