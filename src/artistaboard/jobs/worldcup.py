@@ -1,9 +1,10 @@
 """World Cup job: a live match scoreboard with flag-colored team badges.
 
-Data: rezarahiminia/worldcup2026 raw JSON (no API key). It carries live fields
-(``finished``, ``time_elapsed``, scores) during the tournament; outside it the
-data is the pre-tournament snapshot (all ``notstarted``), so we fall back to the
-next upcoming match.
+Data: ESPN's public ``fifa.world`` scoreboard JSON (no API key). It resolves
+knockout brackets and carries live state (``pre``/``in``/``post`` plus a display
+clock and scores), so the board tracks real games as they happen. We query a
+window around now so the selector can pick a live match or fall back to the next
+upcoming one.
 
 Declarative: the scene (worldcup.json) owns the layout and the leader colouring
 (the ``leader`` rule, violet while live / blue once final). This job parses the
@@ -27,10 +28,20 @@ from ..render import leader_color
 from ..scene import Scene
 from .base import Job
 
-MATCHES_URL = "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main/football.matches.json"
-TEAMS_URL = "https://raw.githubusercontent.com/rezarahiminia/worldcup2026/main/football.teams.json"
+SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+FETCH_WINDOW_DAYS = 14  # how far ahead to look for the next upcoming match
 
 LIVE_WINDOW = timedelta(minutes=150)  # a match is "live" within this of kickoff
+# ESPN season slug -> our stage code (drives the metadata lines in stage_lines).
+_STAGE_FROM_SLUG = {
+    "group-stage": "group",
+    "round-of-32": "r32",
+    "round-of-16": "r16",
+    "quarterfinals": "qf",
+    "semifinals": "sf",
+    "third-place": "third",
+    "final": "final",
+}
 _STAGE_LINE3 = {
     "r32": "ROUND 32",
     "r16": "ROUND 16",
@@ -62,39 +73,55 @@ class Match:
         return self.finished or (self.elapsed not in ("", "notstarted"))
 
 
-def _parse_kickoff(local_date: str) -> datetime | None:
+def _parse_kickoff(iso: str) -> datetime | None:
+    """ESPN gives UTC ISO timestamps (``2026-06-29T17:00Z``); selection compares
+    against ``datetime.now()`` (naive local), so convert UTC -> local naive."""
     try:
-        return datetime.strptime(local_date.strip(), "%m/%d/%Y %H:%M")
+        dt = datetime.fromisoformat(iso.strip().replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return None
+    return dt.astimezone().replace(tzinfo=None)
 
 
-def parse_matches(matches_json: list[dict], teams_json: list[dict]) -> list[Match]:
-    by_id = {t["id"]: t for t in teams_json}
+def _int(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
-    def team(tid: str) -> tuple[str, str]:
-        t = by_id.get(tid, {})
-        return t.get("name_en", tid), t.get("fifa_code", tid)
 
+def parse_espn(events: list[dict]) -> list[Match]:
     out: list[Match] = []
-    for m in matches_json:
-        home, home_code = team(m.get("home_team_id", ""))
-        away, away_code = team(m.get("away_team_id", ""))
+    for e in events:
+        comp = (e.get("competitions") or [{}])[0]
+        sides = {c.get("homeAway"): c for c in comp.get("competitors", [])}
+        home, away = sides.get("home", {}), sides.get("away", {})
+        home_team, away_team = home.get("team", {}), away.get("team", {})
+        status = (e.get("status") or {}).get("type", {})
+        state = status.get("state", "")  # pre / in / post
+        finished = state == "post"
+        if state == "in":
+            elapsed = (e.get("status") or {}).get("displayClock", "") or "LIVE"
+        elif finished:
+            elapsed = ""
+        else:
+            elapsed = "notstarted"
+        slug = (e.get("season") or {}).get("slug", "")
         out.append(
             Match(
-                id=str(m.get("id", "")),
-                home=home,
-                away=away,
-                home_code=home_code,
-                away_code=away_code,
-                home_score=int(m.get("home_score") or 0),
-                away_score=int(m.get("away_score") or 0),
-                group=str(m.get("group", "")),
-                stage=str(m.get("type", "group")),
-                matchday=str(m.get("matchday", "")),
-                kickoff=_parse_kickoff(m.get("local_date", "")),
-                finished=str(m.get("finished", "")).upper() == "TRUE",
-                elapsed=str(m.get("time_elapsed", "")),
+                id=str(e.get("id", "")),
+                home=home_team.get("displayName", ""),
+                away=away_team.get("displayName", ""),
+                home_code=home_team.get("abbreviation", ""),
+                away_code=away_team.get("abbreviation", ""),
+                home_score=_int(home.get("score")),
+                away_score=_int(away.get("score")),
+                group="",  # the scoreboard feed doesn't carry the group letter
+                stage=_STAGE_FROM_SLUG.get(slug, "group"),
+                matchday="",
+                kickoff=_parse_kickoff(e.get("date", "")),
+                finished=finished,
+                elapsed=elapsed,
             )
         )
     return out
@@ -184,9 +211,12 @@ class WorldCupJob(Job):
 
     # -- job hooks -------------------------------------------------------------
     def fetch(self) -> Match | None:
-        matches = httpx.get(MATCHES_URL, timeout=15.0).json()
-        teams = httpx.get(TEAMS_URL, timeout=15.0).json()
-        return self.select_match(parse_matches(matches, teams), datetime.now())
+        now = datetime.now()
+        start = (now - timedelta(days=1)).strftime("%Y%m%d")
+        end = (now + timedelta(days=FETCH_WINDOW_DAYS)).strftime("%Y%m%d")
+        resp = httpx.get(SCOREBOARD_URL, params={"dates": f"{start}-{end}", "limit": 200}, timeout=15.0)
+        events = resp.json().get("events", [])
+        return self.select_match(parse_espn(events), now)
 
     def bind(self, data: Match | None) -> dict[str, Any]:
         if data is None:

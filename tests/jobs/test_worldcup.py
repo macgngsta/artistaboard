@@ -7,7 +7,7 @@ from artistaboard.jobs.worldcup import (
     WorldCupJob,
     is_live,
     match_status,
-    parse_matches,
+    parse_espn,
     stage_lines,
 )
 
@@ -34,27 +34,37 @@ def _match(**kw):
     return Match(**base)
 
 
-def test_parse_matches_maps_team_ids_and_scores():
-    teams = [{"id": "1", "name_en": "Mexico", "fifa_code": "MEX"}, {"id": "2", "name_en": "Brazil", "fifa_code": "BRA"}]
-    raw = [
-        {
-            "id": "1",
-            "home_team_id": "1",
-            "away_team_id": "2",
-            "home_score": "2",
-            "away_score": "1",
-            "group": "A",
-            "type": "group",
-            "matchday": "1",
-            "local_date": "06/11/2026 13:00",
-            "finished": "TRUE",
-            "time_elapsed": "90",
-        }
-    ]
-    m = parse_matches(raw, teams)[0]
-    assert (m.home, m.away) == ("Mexico", "Brazil")
+def _espn_event(**status):
+    return {
+        "id": "9",
+        "date": "2026-06-29T17:00Z",
+        "season": {"slug": "round-of-32"},
+        "status": {"type": status},
+        "competitions": [
+            {
+                "competitors": [
+                    {"homeAway": "home", "score": "2", "team": {"displayName": "Brazil", "abbreviation": "BRA"}},
+                    {"homeAway": "away", "score": "1", "team": {"displayName": "Japan", "abbreviation": "JPN"}},
+                ]
+            }
+        ],
+    }
+
+
+def test_parse_espn_maps_teams_scores_and_stage():
+    m = parse_espn([_espn_event(state="post", completed=True)])[0]
+    assert (m.home, m.away) == ("Brazil", "Japan")
+    assert (m.home_code, m.away_code) == ("BRA", "JPN")
     assert (m.home_score, m.away_score) == (2, 1)
-    assert m.finished and m.kickoff == datetime(2026, 6, 11, 13, 0)
+    assert m.stage == "r32" and m.finished
+    assert isinstance(m.kickoff, datetime)  # UTC ISO -> local naive
+
+
+def test_parse_espn_state_to_elapsed():
+    pre = parse_espn([_espn_event(state="pre")])[0]
+    live = parse_espn([_espn_event(state="in")])[0]
+    assert pre.elapsed == "notstarted" and not pre.finished
+    assert not live.finished and live.elapsed == "LIVE"  # falls back when no display clock
 
 
 def test_is_live():
