@@ -128,6 +128,9 @@ async def start(board_id: str, request: Request, user: CurrentUser, session: Ses
     run = session.get(BoardRun, board_id)
     if run is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "assign a pipeline first")
+    if run.state != "running":  # start (re)begins from the top of the pipeline
+        run.rotation_state = {}
+        run.current_entry_id = None
     run.state = "running"
     session.add(run)
     session.commit()
