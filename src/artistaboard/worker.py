@@ -63,13 +63,21 @@ class BoardWorker:
                 log.warning("board %s missing/unconfigured; stopping", self.board_id)
                 return False
 
-            pipeline = load_pipeline(session, run.pipeline_id, loop=True, rotation_state=run.rotation_state)
+            pipeline = load_pipeline(session, run.pipeline_id, rotation_state=run.rotation_state)
             if not pipeline.entries:
                 self._sleep_for = _IDLE_SLEEP
                 return True
 
             now = datetime.now()
             entry = pipeline.active(now)
+            if entry is None:  # a non-looping pipeline finished; leave the last frame up
+                run.state = "completed"
+                run.rotation_state = pipeline.state.to_dict()
+                run.updated_at = now
+                session.add(run)
+                session.commit()
+                log.info("pipeline finished on board %s", self.board_id)
+                return False
             try:
                 chars = render_entry(entry, self.settings, session).to_characters()
             except Exception:

@@ -35,6 +35,23 @@ def test_seconds_left_counts_down_within_window():
     assert p.seconds_left(e, NOW + timedelta(seconds=20)) == 60 - 20
 
 
+def test_non_looping_finishes_after_last_entry():
+    p = Pipeline("p", [_entry("a", 60), _entry("b", 30)], loop=False, state=RotationState(index=-1))
+    assert p.active(NOW).id == "a"
+    assert p.active(NOW + timedelta(seconds=61)).id == "b"  # advance to last
+    assert p.active(NOW + timedelta(seconds=92)) is None  # b's window elapsed -> finished
+    assert p.completed is True
+
+
+def test_non_looping_holds_last_entry_until_due():
+    p = Pipeline("p", [_entry("a", 60)], loop=False, state=RotationState(index=-1))
+    assert p.active(NOW).id == "a"
+    assert p.active(NOW + timedelta(seconds=30)).id == "a"  # still within window
+    assert p.completed is False
+    assert p.active(NOW + timedelta(seconds=61)) is None  # done
+    assert p.completed is True
+
+
 def test_rotation_state_round_trips():
     p = _fresh([_entry("a", 60), _entry("b", 60)])
     p.active(NOW)

@@ -17,12 +17,12 @@ from datetime import datetime
 from sqlmodel import Session, select
 
 from .config import Settings
+from .db.models import Pipeline as PipelineRow
 from .db.models import PipelineEntry as EntryRow
 from .db.models import Scene as SceneRow
 from .registry import build_job
 from .render import render_scene
 from .rotation import RotationState
-from .rotation import select as rotate_select
 from .scene import Scene
 
 
@@ -42,20 +42,35 @@ class Pipeline:
         self.entries = entries
         self.loop = loop
         self.state = state
+        self.completed = False
 
-    def active(self, now: datetime) -> RuntimeEntry:
-        """The entry to show at ``now``. Mutates ``self.state``; pool must be non-empty."""
-        # Dwell comes from the entry currently held, so each entry's duration applies.
-        rotate_seconds = self.entries[self.state.index].duration_seconds
-        chosen, self.state = rotate_select(
-            self.entries,
-            key=lambda e: e.id,
-            signal=lambda e: 0,  # constant -> never preempt; pure time rotation
-            state=self.state,
-            now=now,
-            rotate_seconds=rotate_seconds,
-        )
-        return chosen
+    def _is_current(self) -> bool:
+        return self.state.index >= 0 and self.state.current_id in {e.id for e in self.entries}
+
+    def _switch_to(self, index: int, now: datetime) -> RuntimeEntry:
+        entry = self.entries[index]
+        self.state.index = index
+        self.state.last_switch = now
+        self.state.current_id = entry.id
+        return entry
+
+    def active(self, now: datetime) -> RuntimeEntry | None:
+        """The entry to show at ``now``, or ``None`` when a non-looping pipeline has
+        finished its last entry (``self.completed`` is then set; the caller stops the
+        run and leaves the last frame up). Pipelines step purely on time — no
+        preemption — so this is explicit and loop-aware rather than the job selector.
+        Mutates ``self.state``; the pool must be non-empty."""
+        if not self._is_current():
+            return self._switch_to(0, now)  # fresh start (or a stale resume) -> entry 0
+        if self.seconds_left(self.entries[self.state.index], now) > 0:
+            return self.entries[self.state.index]  # hold the current entry
+        nxt = self.state.index + 1
+        if nxt >= len(self.entries):
+            if not self.loop:
+                self.completed = True
+                return None
+            nxt = 0
+        return self._switch_to(nxt, now)
 
     def seconds_left(self, entry: RuntimeEntry, now: datetime) -> float:
         """How long until the current entry's window elapses (0 if already due)."""
@@ -65,7 +80,9 @@ class Pipeline:
         return max(0.0, entry.duration_seconds - elapsed)
 
 
-def load_pipeline(session: Session, pipeline_id: str, loop: bool, rotation_state: dict | None) -> Pipeline:
+def load_pipeline(session: Session, pipeline_id: str, rotation_state: dict | None) -> Pipeline:
+    pipeline = session.get(PipelineRow, pipeline_id)
+    loop = pipeline.loop if pipeline is not None else True
     rows = session.exec(select(EntryRow).where(EntryRow.pipeline_id == pipeline_id).order_by(EntryRow.position)).all()
     entries = [
         RuntimeEntry(
