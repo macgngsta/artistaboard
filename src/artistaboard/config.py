@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./artistaboard.db"
     session_secret: str = "dev-insecure-change-me"
     allow_signup: bool = True
+    # Encrypts board Read/Write keys at rest (Fernet). Falls back to session_secret
+    # when unset — fine for local dev, set a dedicated key in any real deployment.
+    app_encryption_key: str = ""
+
+    @property
+    def encryption_secret(self) -> str:
+        return self.app_encryption_key or self.session_secret
 
     # Glyph font (a file <font>.json in fonts/). Bundled: nanofont3x4, bytesized3x4, 3x3pixels, 3by5.
     font: str = "bytesized3x4"
