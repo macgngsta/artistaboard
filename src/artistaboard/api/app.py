@@ -14,7 +14,8 @@ from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from ..config import Settings, get_settings
-from ..db.engine import create_db_and_tables, get_engine, init_engine
+from ..db.engine import get_engine, init_engine
+from ..db.migrate import run_migrations
 from ..db.seed import seed_system_scenes
 from ..worker import BoardManager
 from .routers import auth, boards, pipelines, preview, scenes
@@ -27,7 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        create_db_and_tables()
+        run_migrations(settings.database_url)  # upgrade to head (creates schema on a fresh DB)
         with Session(get_engine()) as session:
             seed_system_scenes(session, settings)
         await manager.reconcile()  # resume any board that was running

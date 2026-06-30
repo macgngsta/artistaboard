@@ -49,3 +49,7 @@ run = "docker compose up -d"
 [tasks.docker-down]
 description = "Stop the docker compose stack"
 run = "docker compose down"
+
+[tasks.migrate]
+description = "Apply database migrations (alembic upgrade head)"
+run = "uv run alembic upgrade head"
