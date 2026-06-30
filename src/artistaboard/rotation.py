@@ -22,12 +22,34 @@ from datetime import datetime, timedelta
 
 @dataclass
 class RotationState:
-    """Mutable rotation bookkeeping. Carried by the caller across ``select`` calls."""
+    """Mutable rotation bookkeeping. Carried by the caller across ``select`` calls.
+
+    JSON-round-trippable (``to_dict``/``from_dict``) so a runner can persist it and
+    resume mid-rotation after a restart.
+    """
 
     index: int = 0
     last_switch: datetime | None = None
     current_id: str | None = None
     signals: dict[str, Hashable] = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "index": self.index,
+            "last_switch": self.last_switch.isoformat() if self.last_switch else None,
+            "current_id": self.current_id,
+            "signals": dict(self.signals),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> RotationState:
+        raw = data.get("last_switch")
+        return cls(
+            index=data.get("index", 0),
+            last_switch=datetime.fromisoformat(raw) if raw else None,
+            current_id=data.get("current_id"),
+            signals=dict(data.get("signals") or {}),
+        )
 
 
 def select[T](
