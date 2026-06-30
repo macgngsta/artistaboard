@@ -34,6 +34,7 @@ class RuntimeEntry:
     source_type: str  # job / scene
     job_name: str | None
     scene_id: str | None
+    data_source: str | None = None
 
 
 class Pipeline:
@@ -92,6 +93,7 @@ def load_pipeline(session: Session, pipeline_id: str, rotation_state: dict | Non
             source_type=r.source_type,
             job_name=r.job_name,
             scene_id=r.scene_id,
+            data_source=r.data_source,
         )
         for r in rows
     ]
@@ -102,8 +104,8 @@ def load_pipeline(session: Session, pipeline_id: str, rotation_state: dict | Non
 
 def render_entry(entry: RuntimeEntry, settings: Settings, session: Session) -> Scene:
     """Render one entry to a Scene. A job entry builds via its own job; a scene entry
-    renders the stored document (static envelope for now — data binding lands in a
-    later phase)."""
+    renders the stored document, filling its variables from ``data_source``'s envelope
+    (a job's ``bind(fetch())``, auto-bound by name) or static when there's no source."""
     if entry.source_type == "job":
         if not entry.job_name:
             raise ValueError("job entry missing job_name")
@@ -113,6 +115,10 @@ def render_entry(entry: RuntimeEntry, settings: Settings, session: Session) -> S
         if row is None:
             raise ValueError(f"scene {entry.scene_id} not found")
         scene = Scene.from_dict(row.document)
-        render_scene(scene, {}, settings)
+        envelope: dict = {}
+        if entry.data_source:
+            job = build_job(entry.data_source, settings)
+            envelope = job.bind(job.fetch()) or {}
+        render_scene(scene, envelope, settings)
         return scene
     raise ValueError(f"unknown entry source_type {entry.source_type!r}")

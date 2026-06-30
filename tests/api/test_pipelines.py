@@ -28,6 +28,35 @@ def test_scene_entry_accepts_system_scene(auth_client):
     assert r.status_code == 201
 
 
+def test_scene_entry_with_data_source(auth_client):
+    clock = next(s for s in auth_client.get("/scenes").json() if s["name"] == "clock")
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "p",
+            "entries": [
+                {"source_type": "scene", "scene_id": clock["id"], "data_source": "clock", "duration_seconds": 30}
+            ],
+        },
+    )
+    assert r.status_code == 201
+    assert r.json()["entries"][0]["data_source"] == "clock"
+
+
+def test_unknown_data_source_is_422(auth_client):
+    clock = next(s for s in auth_client.get("/scenes").json() if s["name"] == "clock")
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "p",
+            "entries": [
+                {"source_type": "scene", "scene_id": clock["id"], "data_source": "bogus", "duration_seconds": 30}
+            ],
+        },
+    )
+    assert r.status_code == 422
+
+
 def test_unknown_job_entry_is_422(auth_client):
     r = auth_client.post(
         "/pipelines",

@@ -112,6 +112,7 @@ class PipelineEntryIn(BaseModel):
     source_type: str = "job"  # job / scene
     job_name: str | None = None
     scene_id: str | None = None
+    data_source: str | None = None  # scene entries: a job feeding the scene's data
     duration_seconds: int = Field(default=60, gt=0)
     refresh_seconds: int | None = None
 
@@ -122,6 +123,7 @@ class PipelineEntryOut(BaseModel):
     source_type: str
     job_name: str | None
     scene_id: str | None
+    data_source: str | None
     duration_seconds: int
     refresh_seconds: int | None
 

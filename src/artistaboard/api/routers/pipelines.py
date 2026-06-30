@@ -24,6 +24,8 @@ def _validate_entry(entry: PipelineEntryIn, user_id: str, session: SessionDep) -
         scene = session.get(Scene, entry.scene_id) if entry.scene_id else None
         if scene is None or (not scene.is_system and scene.owner_id != user_id):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "scene entry references an unknown scene")
+        if entry.data_source is not None and entry.data_source not in JOB_TYPES:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown data_source {entry.data_source!r}")
     else:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"bad source_type {entry.source_type!r}")
 
@@ -52,6 +54,7 @@ def _replace_entries(session: SessionDep, pipeline_id: str, entries: list[Pipeli
                 source_type=entry.source_type,
                 job_name=entry.job_name,
                 scene_id=entry.scene_id,
+                data_source=entry.data_source,
                 duration_seconds=entry.duration_seconds,
                 refresh_seconds=entry.refresh_seconds,
             )
