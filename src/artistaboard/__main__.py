@@ -3,6 +3,7 @@
 python -m artistaboard preview <job>     # render to terminal, never touch the board
 python -m artistaboard paint <job>       # render once and send to the board
 python -m artistaboard run               # daemon: paint ACTIVE_JOB on its schedule
+python -m artistaboard serve             # run the web app (api) with uvicorn
 """
 
 from __future__ import annotations
@@ -72,6 +73,15 @@ def _run() -> int:
     return 0
 
 
+def _serve(host: str, port: int) -> int:
+    import uvicorn
+
+    from .api import create_app
+
+    uvicorn.run(create_app(), host=host, port=port)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # httpx logs each request URL at INFO; the 511 endpoint carries the api_key as a
@@ -86,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
     p_paint = sub.add_parser("paint", help="render a job once and send to the board")
     p_paint.add_argument("job", choices=job_names)
     sub.add_parser("run", help="run the scheduler daemon for ACTIVE_JOB")
+    p_serve = sub.add_parser("serve", help="run the web app (api) with uvicorn")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8000)
     sub.add_parser("spotify-auth", help="one-time OAuth to get a Spotify refresh token")
 
     args = parser.parse_args(argv)
@@ -93,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         return _preview(args.job)
     if args.command == "paint":
         return _paint(args.job)
+    if args.command == "serve":
+        return _serve(args.host, args.port)
     if args.command == "spotify-auth":
         return _spotify_auth()
     return _run()

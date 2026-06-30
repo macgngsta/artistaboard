@@ -21,6 +21,10 @@ run = "uv run python -m artistaboard preview"
 description = "Render a job once and send it to the board: mise paint clock"
 run = "uv run python -m artistaboard paint"
 
+[tasks.serve]
+description = "Run the web app (api) with uvicorn on http://127.0.0.1:8000"
+run = "uv run python -m artistaboard serve"
+
 [tasks.test]
 description = "Run the test suite"
 run = "uv run pytest -q"

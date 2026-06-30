@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     # Daemon: which job to paint on a schedule.
     active_job: str = "clock"
 
+    # Web app (api/). database_url defaults to a SQLite file in the working dir;
+    # session_secret signs the auth cookie (override in any real deployment);
+    # allow_signup gates registration after the first owner account exists.
+    database_url: str = "sqlite:///./artistaboard.db"
+    session_secret: str = "dev-insecure-change-me"
+    allow_signup: bool = True
+
     # Glyph font (a file <font>.json in fonts/). Bundled: nanofont3x4, bytesized3x4, 3x3pixels, 3by5.
     font: str = "bytesized3x4"
 
