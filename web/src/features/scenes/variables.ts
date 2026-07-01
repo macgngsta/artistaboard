@@ -10,16 +10,46 @@ export function collectVariables(
 ): RequiredVariable[] {
   const meta = new Map(serverVars.map((v) => [v.name, v]));
   const names = new Set<string>();
+  const colorKeys = new Set<string>();
 
   for (const region of Object.values(document.render ?? {})) {
     if (region.bind) names.add(region.bind);
     const color = region.color;
     if (color && typeof color === "object" && "data" in color && typeof color.data === "string") {
       names.add(color.data);
+      colorKeys.add(color.data);
     }
   }
   // Keep any server-known variable even if the bind was just removed mid-edit.
   for (const v of serverVars) names.add(v.name);
 
-  return [...names].map((name) => meta.get(name) ?? { name });
+  return [...names].map((name) => {
+    if (meta.has(name)) return meta.get(name)!;
+    // A key used as a {data:key} color must be an int code, so tag it as color
+    // even before the server has recomputed required_variables.
+    return colorKeys.has(name) ? { name, kind: "color" } : { name };
+  });
+}
+
+// Sample data actually sent to /preview: the user's values, backfilled with sane
+// defaults so the board renders instead of 422-ing on an empty required value.
+// Color/number vars need a concrete value; text/flag can stay blank (renders empty).
+export function seedSampleData(
+  variables: RequiredVariable[],
+  userSample: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const v of variables) {
+    const userVal = userSample[v.name];
+    if (userVal !== undefined && userVal !== "") {
+      out[v.name] = userVal;
+    } else if (v.fallback != null && v.fallback !== "") {
+      out[v.name] = v.fallback;
+    } else if (v.kind === "color") {
+      out[v.name] = 69; // white chip
+    } else if (v.kind === "number") {
+      out[v.name] = 0;
+    }
+  }
+  return out;
 }

@@ -1,7 +1,8 @@
 import { useSceneEditor } from "./store";
-import type { ColorSpec, RenderRegion } from "@/api/types";
+import type { RenderRegion } from "@/api/types";
 import { Field, Input } from "@/components/ui/primitives";
 import { Select } from "@/components/ui/select";
+import { ColorPicker } from "./ColorPicker";
 
 const AS_OPTIONS = [
   { value: "text", label: "text" },
@@ -18,29 +19,6 @@ const TRANSFORM_OPTIONS = [
   { value: "", label: "none" },
   { value: "upper", label: "upper" },
 ];
-
-// Serialize a color spec back into the text field. Names/codes show raw;
-// {data} / {rule} objects show as JSON for advanced editing.
-function colorToText(color: ColorSpec | undefined): string {
-  if (color === undefined) return "";
-  if (typeof color === "string" || typeof color === "number") return String(color);
-  return JSON.stringify(color);
-}
-
-// Parse the text field into the shape the backend expects: a number code, a
-// color name, or a {data}/{rule} object. Empty clears the field.
-function textToColor(text: string): ColorSpec | undefined {
-  const t = text.trim();
-  if (!t) return undefined;
-  if (t.startsWith("{")) {
-    try {
-      return JSON.parse(t) as ColorSpec;
-    } catch {
-      return t; // leave as-is; the server 422 will explain if invalid
-    }
-  }
-  return /^\d+$/.test(t) ? Number(t) : t;
-}
 
 export function RegionEditor({ readOnly }: { readOnly: boolean }) {
   const selected = useSceneEditor((s) => s.selectedRegion);
@@ -102,13 +80,8 @@ export function RegionEditor({ readOnly }: { readOnly: boolean }) {
         />
       </Field>
 
-      <Field label='Color (name "violet", code 68, or {"data":"key"})'>
-        <Input
-          value={colorToText(region.color)}
-          readOnly={readOnly}
-          placeholder="white"
-          onChange={(e) => set("color", textToColor(e.target.value))}
-        />
+      <Field label="Color">
+        <ColorPicker value={region.color} disabled={readOnly} onChange={(c) => set("color", c)} />
       </Field>
 
       <Field label="Fallback (used when the value is empty)">
