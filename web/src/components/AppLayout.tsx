@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutGrid, ListOrdered, MonitorSpeaker, LogOut } from "lucide-react";
+import { LayoutGrid, ListOrdered, MonitorSpeaker, Briefcase, LogOut } from "lucide-react";
 import { useSession, useLogout } from "@/features/auth/api";
 import { Button } from "@/components/ui/primitives";
 import { cn } from "@/lib/cn";
@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 const NAV = [
   { to: "/scenes", label: "Scenes", icon: LayoutGrid },
   { to: "/boards", label: "Boards", icon: MonitorSpeaker },
+  { to: "/jobs", label: "Jobs", icon: Briefcase },
   { to: "/pipelines", label: "Pipelines", icon: ListOrdered },
 ];
 
