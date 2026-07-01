@@ -4,10 +4,12 @@
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  detail: unknown; // raw FastAPI `detail` (string, validation array, or structured object)
+  constructor(message: string, status: number, detail?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -21,6 +23,11 @@ type ValidationItem = { loc?: (string | number)[]; msg?: string };
 
 export function messageFromDetail(detail: unknown, fallback: string): string {
   if (typeof detail === "string") return detail;
+  // Structured HTTPException detail (e.g. the preview 422 { message, missing_key }).
+  if (detail && typeof detail === "object" && !Array.isArray(detail) && "message" in detail) {
+    const m = (detail as { message?: unknown }).message;
+    if (typeof m === "string") return m;
+  }
   if (Array.isArray(detail)) {
     const parts = (detail as ValidationItem[])
       .map((d) => {
@@ -38,5 +45,5 @@ export function messageFromDetail(detail: unknown, fallback: string): string {
 export function toApiError(error: unknown, response: Response): ApiError {
   const detail = (error as { detail?: unknown } | undefined)?.detail;
   const msg = messageFromDetail(detail, response.statusText || "Request failed");
-  return new ApiError(msg, response.status);
+  return new ApiError(msg, response.status, detail);
 }

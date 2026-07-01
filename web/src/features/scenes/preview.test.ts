@@ -16,8 +16,14 @@ const ok = (chars: number[][]) => ({
   data: { rows: chars.length, cols: chars[0]?.length ?? 0, characters: chars },
   response: { ok: true, status: 200 },
 });
+// Legacy string form (older backend).
 const missing = (key: string) => ({
   error: { detail: `cannot render scene: '${key}'` },
+  response: { ok: false, status: 422 },
+});
+// Structured form (current backend).
+const missingStructured = (key: string) => ({
+  error: { detail: { message: `cannot render scene: '${key}'`, missing_key: key } },
   response: { ok: false, status: 422 },
 });
 
@@ -36,6 +42,13 @@ describe("previewWithAutoSeed", () => {
     // final attempt carries both seeded keys defaulted to white (69)
     const lastBody = post.mock.calls[2][1].body;
     expect(lastBody.sample_data).toMatchObject({ badge_color: 69, time_color: 69 });
+  });
+
+  it("uses the structured missing_key when the backend provides it", async () => {
+    post.mockResolvedValueOnce(missingStructured("badge_color")).mockResolvedValueOnce(ok([[0]]));
+    const out = await previewWithAutoSeed(doc, {});
+    expect(out.rows).toBe(1);
+    expect(post.mock.calls[1][1].body.sample_data).toMatchObject({ badge_color: 69 });
   });
 
   it("rethrows a non-seedable 422 (real document error)", async () => {
