@@ -6,7 +6,6 @@ from artistaboard.jobs.worldcup import (
     Match,
     WorldCupJob,
     is_live,
-    match_status,
     parse_espn,
     stage_lines,
 )
@@ -72,13 +71,6 @@ def test_is_live():
     assert not is_live(_match(finished=True, elapsed="90"), NOW)  # finished
     assert is_live(_match(elapsed="notstarted", kickoff=datetime(2026, 6, 28, 13, 30)), NOW)  # within window
     assert not is_live(_match(elapsed="notstarted", kickoff=datetime(2026, 6, 28, 9, 0)), NOW)  # window passed
-
-
-def test_match_status():
-    assert match_status(_match(finished=True), NOW) == "FT"
-    assert match_status(_match(elapsed="67"), NOW) == "67'"
-    assert match_status(_match(elapsed="HT"), NOW) == "HT"
-    assert match_status(_match(elapsed="notstarted"), NOW) == "13:00"
 
 
 def test_stage_lines():

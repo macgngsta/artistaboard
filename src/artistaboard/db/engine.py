@@ -2,8 +2,8 @@
 
 The engine is a module global initialised from ``settings.database_url`` when the
 app starts (``init_engine``), so request handlers and the (later) board worker share
-one connection pool. Tables are created on startup via ``create_db_and_tables``;
-Alembic migrations arrive when the schema stabilises (Phase 2).
+one connection pool. Startup brings the schema to head via Alembic (``run_migrations``);
+``create_db_and_tables`` remains a test/bootstrap convenience.
 """
 
 from __future__ import annotations

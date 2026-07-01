@@ -4,7 +4,7 @@ import { Plus, Copy, Trash2, Lock } from "lucide-react";
 import { PageHeader } from "@/components/AppLayout";
 import { Button, Card, Badge, Spinner } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/api/errors";
+import { errorMessage } from "@/api/errors";
 import type { Scene, SceneDocument } from "@/api/types";
 import { useScenes, useCreateScene, useDeleteScene } from "./api";
 import { newSceneDocument } from "./defaults";
@@ -26,7 +26,7 @@ export function ScenesPage() {
       });
       navigate(`/scenes/${scene.id}`);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not create scene");
+      toast.error(errorMessage(e, "Could not create scene"));
     }
   }
 
@@ -42,7 +42,7 @@ export function ScenesPage() {
       toast.success("Scene duplicated");
       navigate(`/scenes/${copy.id}`);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not duplicate scene");
+      toast.error(errorMessage(e, "Could not duplicate scene"));
     } finally {
       setBusyId(null);
     }
@@ -55,7 +55,7 @@ export function ScenesPage() {
       await deleteScene.mutateAsync(scene.id);
       toast.success("Scene deleted");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not delete scene");
+      toast.error(errorMessage(e, "Could not delete scene"));
     } finally {
       setBusyId(null);
     }

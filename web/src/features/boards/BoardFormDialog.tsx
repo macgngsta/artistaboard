@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button, Field, Input, Spinner } from "@/components/ui/primitives";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/api/errors";
+import { errorMessage } from "@/api/errors";
 import { BOARD_MODELS, type Board, type BoardIn } from "@/api/types";
 import { useCreateBoard, useUpdateBoard } from "./api";
 
@@ -45,7 +45,7 @@ export function BoardFormDialog({
       toast.success(editing ? "Board updated" : "Board created");
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not save board");
+      toast.error(errorMessage(err, "Could not save board"));
     }
   }
 

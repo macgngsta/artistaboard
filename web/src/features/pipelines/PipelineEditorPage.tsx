@@ -16,7 +16,7 @@ import { Button, Card, Input, Spinner } from "@/components/ui/primitives";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/api/errors";
+import { errorMessage } from "@/api/errors";
 import type { PipelineIn } from "@/api/types";
 import { useScenes } from "@/features/scenes/api";
 import { useBoards, useAssignPipeline, useStartBoard } from "@/features/boards/api";
@@ -89,7 +89,7 @@ export function PipelineEditorPage() {
       toast.success("Pipeline saved");
       return true;
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not save pipeline");
+      toast.error(errorMessage(e, "Could not save pipeline"));
       return false;
     }
   }
@@ -106,7 +106,7 @@ export function PipelineEditorPage() {
       await start.mutateAsync(boardId);
       toast.success("Running on board");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not start");
+      toast.error(errorMessage(e, "Could not start"));
     }
   }
 

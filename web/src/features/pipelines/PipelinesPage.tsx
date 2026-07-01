@@ -4,7 +4,7 @@ import { Plus, Repeat, ArrowRight, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/AppLayout";
 import { Button, Card, Badge, Spinner } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/api/errors";
+import { errorMessage } from "@/api/errors";
 import type { Pipeline } from "@/api/types";
 import { usePipelines, useCreatePipeline, useDeletePipeline } from "./api";
 
@@ -20,7 +20,7 @@ export function PipelinesPage() {
       const p = await createPipeline.mutateAsync({ name: "Untitled pipeline", loop: true, entries: [] });
       navigate(`/pipelines/${p.id}`);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not create pipeline");
+      toast.error(errorMessage(e, "Could not create pipeline"));
     }
   }
 
@@ -31,7 +31,7 @@ export function PipelinesPage() {
       await deletePipeline.mutateAsync(p.id);
       toast.success("Pipeline deleted");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not delete pipeline");
+      toast.error(errorMessage(e, "Could not delete pipeline"));
     } finally {
       setBusyId(null);
     }
