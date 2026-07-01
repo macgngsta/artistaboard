@@ -11,7 +11,7 @@ from sqlmodel import select
 
 from ...db import Pipeline, PipelineEntry, Scene
 from ...registry import JOB_TYPES, options_overrides
-from ..deps import CurrentUser, SessionDep
+from ..deps import CurrentUser, SessionDep, get_owned
 from ..schemas import PipelineEntryIn, PipelineEntryOut, PipelineIn, PipelineOut
 
 router = APIRouter(prefix="/pipelines", tags=["pipelines"])
@@ -80,10 +80,7 @@ def _replace_entries(session: SessionDep, pipeline_id: str, entries: list[Pipeli
 
 
 def _own_pipeline(session: SessionDep, pipeline_id: str, user_id: str) -> Pipeline:
-    pipeline = session.get(Pipeline, pipeline_id)
-    if pipeline is None or pipeline.owner_id != user_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "pipeline not found")
-    return pipeline
+    return get_owned(session, Pipeline, pipeline_id, user_id, not_found="pipeline not found")
 
 
 @router.get("", response_model=list[PipelineOut])
