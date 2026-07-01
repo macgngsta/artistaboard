@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Daemon: which job to paint on a schedule.
     active_job: str = "clock"
 
+    # Poller daemon (`artistaboard poll`): how often to fetch referenced sources into
+    # data_snapshots (cron; default every minute — the design's 1-minute resolution).
+    poll_cron: str = "* * * * *"
+
     # Web app (api/). database_url defaults to a SQLite file in the working dir;
     # session_secret signs the auth cookie (override in any real deployment);
     # allow_signup gates registration after the first owner account exists.

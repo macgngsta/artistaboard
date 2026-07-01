@@ -3,6 +3,7 @@
 python -m artistaboard preview <job>     # render to terminal, never touch the board
 python -m artistaboard paint <job>       # render once and send to the board
 python -m artistaboard run               # daemon: paint ACTIVE_JOB on its schedule
+python -m artistaboard poll              # daemon: fetch referenced sources into the DB
 python -m artistaboard serve             # run the web app (api) with uvicorn
 """
 
@@ -96,6 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     p_paint = sub.add_parser("paint", help="render a job once and send to the board")
     p_paint.add_argument("job", choices=job_names)
     sub.add_parser("run", help="run the scheduler daemon for ACTIVE_JOB")
+    sub.add_parser("poll", help="run the poller daemon: fetch referenced sources into the DB (Postgres)")
     p_serve = sub.add_parser("serve", help="run the web app (api) with uvicorn")
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8000)
@@ -108,6 +110,10 @@ def main(argv: list[str] | None = None) -> int:
         return _paint(args.job)
     if args.command == "serve":
         return _serve(args.host, args.port)
+    if args.command == "poll":
+        from .poller import run_poll_daemon
+
+        return run_poll_daemon()
     if args.command == "spotify-auth":
         return _spotify_auth()
     return _run()
