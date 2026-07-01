@@ -1,28 +1,28 @@
-"""Shared rotation selector for "show one of N items, switch on a cadence".
+"""Rotation helpers for cycling a board through a pool of items.
 
-Several jobs cycle a board through a pool of items (live matches, live games),
-holding each for a few minutes and switching sooner when something noteworthy
-changes (a score). The policy is identical across them, so it lives here once:
+Two independent mechanisms live here:
 
-* a **priority signal** change in any pool item wins the board immediately;
-* otherwise hold the current item until ``rotate_seconds`` elapses;
-* then advance round-robin.
+* :class:`RotationState` — the *pipeline*'s persisted entry cursor (which entry of a
+  pipeline shows now), carried across ticks in ``BoardRun.rotation_state`` so a run
+  resumes mid-rotation after a restart. The pipeline runner owns it.
+* :func:`rotate_index` — a *stateless* item selector for a job's own pool (which of N
+  live matches / games to show now). Derived from wall-clock time alone, so it advances
+  across paints with no persisted cursor and is trivially testable by freezing ``now``.
 
-``select`` is pure given its ``RotationState``: it reads ``now`` rather than the
-clock, so callers can freeze time in tests, and the state is a plain record so it
-can later be persisted (e.g. to resume a running pipeline across a restart).
+The split matters because a job is rebuilt from scratch every paint (``build_job``), so
+it cannot carry rotation state in memory; deriving the item from ``now`` sidesteps that.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Hashable, Sequence
+from collections.abc import Hashable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 @dataclass
 class RotationState:
-    """Mutable rotation bookkeeping. Carried by the caller across ``select`` calls.
+    """Mutable rotation bookkeeping. Carried by the caller across selections.
 
     JSON-round-trippable (``to_dict``/``from_dict``) so a runner can persist it and
     resume mid-rotation after a restart.
@@ -52,39 +52,11 @@ class RotationState:
         )
 
 
-def select[T](
-    pool: Sequence[T],
-    *,
-    key: Callable[[T], str],
-    signal: Callable[[T], Hashable],
-    state: RotationState,
-    now: datetime,
-    rotate_seconds: float,
-) -> tuple[T, RotationState]:
-    """Pick which item of ``pool`` to show now, mutating and returning ``state``.
+def rotate_index(count: int, now: datetime, rotate_seconds: float) -> int:
+    """Which of ``count`` items to show at ``now``, advancing every ``rotate_seconds``.
 
-    ``pool`` must be non-empty (callers filter to a pool first and handle empty
-    themselves). ``key`` gives each item a stable id; ``signal`` returns the value
-    whose *change* preempts the rotation (return a constant to disable preemption,
-    e.g. for a pure time-based playlist). ``rotate_seconds`` is the dwell time for
-    the current item — pass the active entry's own duration to vary it per item.
+    Stateless and pure: the position is a function of wall-clock time alone, so it moves
+    forward across paints without any persisted cursor and is deterministic under a
+    frozen ``now`` in tests. ``count`` must be >= 1 and ``rotate_seconds`` > 0.
     """
-    by_id = {key(item): item for item in pool}
-    # An item whose signal differs from what we last recorded wins immediately.
-    # A never-seen item defaults to its own current signal, so it is not "changed".
-    changed = [item for item in pool if state.signals.get(key(item), signal(item)) != signal(item)]
-    for item in pool:
-        state.signals[key(item)] = signal(item)
-
-    rotate = timedelta(seconds=rotate_seconds)
-    if changed:
-        chosen = changed[0]
-        state.last_switch = now
-    elif state.current_id in by_id and state.last_switch and now - state.last_switch < rotate:
-        chosen = by_id[state.current_id]  # hold current
-    else:
-        state.index = (state.index + 1) % len(pool)
-        chosen = pool[state.index]
-        state.last_switch = now
-    state.current_id = key(chosen)
-    return chosen, state
+    return int(now.timestamp() // rotate_seconds) % count

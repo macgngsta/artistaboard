@@ -18,7 +18,7 @@ from typing import Any, ClassVar
 import httpx
 from pydantic import Field
 
-from ..rotation import RotationState, select
+from ..rotation import rotate_index
 from .base import Job, JobOptions, jsonable
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/{league}/scoreboard"
@@ -116,7 +116,12 @@ def display_name(team: Team) -> str:
 class SportHighScoresOptions(JobOptions):
     league: str | None = None  # ESPN sport/league path (e.g. "basketball/nba")
     rotate_seconds: int | None = Field(default=None, gt=0)
-    override_map: ClassVar[dict[str, str]] = {"league": "sport_league", "rotate_seconds": "sport_rotate_seconds"}
+    single: bool | None = None  # show one game (no rotation) instead of cycling the pool
+    override_map: ClassVar[dict[str, str]] = {
+        "league": "sport_league",
+        "rotate_seconds": "sport_rotate_seconds",
+        "single": "sport_single",
+    }
     fetch_defining: ClassVar[frozenset[str]] = frozenset({"league"})  # each league is its own series
 
 
@@ -125,10 +130,6 @@ class SportHighScoresJob(Job):
     interval_seconds = 60
     scene_name = "sport_highscores"
     Options = SportHighScoresOptions
-
-    def __init__(self, settings) -> None:
-        super().__init__(settings)
-        self._rotation = RotationState()
 
     @cached_property
     def _states(self) -> dict[str, str]:
@@ -146,17 +147,11 @@ class SportHighScoresJob(Job):
         pool = self._pool(games)
         if not pool:
             return None
-        # A score change in any pool game wins the board immediately; otherwise
-        # hold the current game until the rotate cadence elapses, then advance.
-        chosen, self._rotation = select(
-            pool,
-            key=lambda g: g.id,
-            signal=lambda g: (g.home.score, g.away.score),
-            state=self._rotation,
-            now=now,
-            rotate_seconds=self.settings.sport_rotate_seconds,
-        )
-        return chosen
+        if self.settings.sport_single or len(pool) == 1:
+            return pool[0]
+        # Cycle the live-game pool on the rotate cadence, purely from the clock so
+        # rotation advances across paints without any per-paint state.
+        return pool[rotate_index(len(pool), now, self.settings.sport_rotate_seconds)]
 
     def _league(self) -> str:
         return self.settings.sport_league

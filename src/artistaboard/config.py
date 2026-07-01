@@ -100,10 +100,12 @@ class Settings(BaseSettings):
     worldcup_group: str = ""
     worldcup_rotate_seconds: int = 300
     worldcup_live_only: bool = False
+    worldcup_single: bool = False  # pin to one match instead of rotating the pool
 
     # Sport high-scores job: ESPN sport/league path + rotation cadence.
     sport_league: str = "basketball/nba"
     sport_rotate_seconds: int = 300
+    sport_single: bool = False  # pin to one game instead of rotating the pool
 
     # Sport low-scores job: ESPN sport/league path for sports whose scores stay
     # to 1-2 digits (baseball, soccer, hockey). Shares sport_rotate_seconds.

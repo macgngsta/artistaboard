@@ -26,10 +26,11 @@ def test_overrides_derive_per_call_settings_without_touching_base():
 
 
 def test_options_overrides_maps_clean_names_to_settings_fields():
-    assert options_overrides("world_cup", {"group": "C", "rotate_seconds": 120, "live_only": True}) == {
+    assert options_overrides("world_cup", {"group": "C", "rotate_seconds": 120, "live_only": True, "single": True}) == {
         "worldcup_group": "C",
         "worldcup_rotate_seconds": 120,
         "worldcup_live_only": True,
+        "worldcup_single": True,
     }
 
 

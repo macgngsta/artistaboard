@@ -26,7 +26,7 @@ from pydantic import Field
 
 from .. import codes
 from ..render import leader_color
-from ..rotation import RotationState, select
+from ..rotation import rotate_index
 from ..scene import Scene
 from .base import Job, JobOptions, jsonable
 
@@ -167,10 +167,12 @@ class WorldCupOptions(JobOptions):
     group: str | None = None  # restrict to one group letter (e.g. "C")
     rotate_seconds: int | None = Field(default=None, gt=0)  # cadence for rotating live matches
     live_only: bool | None = None  # pin to in-play matches; show "NO MATCHES" when none are live
+    single: bool | None = None  # show one match (no rotation) instead of cycling the pool
     override_map: ClassVar[dict[str, str]] = {
         "group": "worldcup_group",
         "rotate_seconds": "worldcup_rotate_seconds",
         "live_only": "worldcup_live_only",
+        "single": "worldcup_single",
     }
 
 
@@ -179,10 +181,6 @@ class WorldCupJob(Job):
     interval_seconds = 60
     scene_name = "worldcup"
     Options = WorldCupOptions
-
-    def __init__(self, settings) -> None:
-        super().__init__(settings)
-        self._rotation = RotationState()
 
     @cached_property
     def _flags(self) -> dict[str, list[str]]:
@@ -210,17 +208,12 @@ class WorldCupJob(Job):
         pool = self._pool(matches, now)
         if not pool:
             return None
-        # A score change in any pool match wins the board immediately; otherwise
-        # hold the current match until the rotate cadence elapses, then advance.
-        chosen, self._rotation = select(
-            pool,
-            key=lambda m: m.id,
-            signal=lambda m: (m.home_score, m.away_score),
-            state=self._rotation,
-            now=now,
-            rotate_seconds=self.settings.worldcup_rotate_seconds,
-        )
-        return chosen
+        if self.settings.worldcup_single or len(pool) == 1:
+            return pool[0]
+        # Cycle the live-match pool on the rotate cadence, purely from the clock so
+        # rotation advances across paints without any per-paint state (each render
+        # rebuilds the job from scratch).
+        return pool[rotate_index(len(pool), now, self.settings.worldcup_rotate_seconds)]
 
     # -- job hooks -------------------------------------------------------------
     def _scoreboard_events(self) -> list[dict]:

@@ -14,6 +14,8 @@ spawns/cancels workers to match. The API flips a row then calls ``reconcile``.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 from datetime import datetime
 
@@ -31,12 +33,16 @@ log = logging.getLogger("artistaboard.worker")
 _IDLE_SLEEP = 30.0  # when a run has no entries / nothing to do
 
 
+def _frame_hash(chars: list[list[int]]) -> str:
+    """A stable fingerprint of a rendered frame, for cheap same-content comparison."""
+    return hashlib.sha256(json.dumps(chars, separators=(",", ":")).encode()).hexdigest()
+
+
 class BoardWorker:
     def __init__(self, board_id: str, settings: Settings) -> None:
         self.board_id = board_id
         self.settings = settings
         self._client: VestaboardClient | None = None
-        self._last_sent: list[list[int]] | None = None
         self._sleep_for: float = _IDLE_SLEEP
 
     async def run(self) -> None:
@@ -88,7 +94,10 @@ class BoardWorker:
             if self._client is None:
                 key = decrypt(board.rw_key_encrypted, self.settings.encryption_secret)
                 self._client = VestaboardClient(key, min_interval=board.min_send_interval)
-            if chars != self._last_sent:
+            frame_hash = _frame_hash(chars)
+            # Gate the send on the persisted fingerprint (not an in-memory guard), so a
+            # restarted worker doesn't re-send content already on the board.
+            if frame_hash != run.last_frame_hash:
                 try:
                     self._client.send(chars)
                 except Exception:  # a board error must not kill the worker; retry next tick
@@ -98,8 +107,8 @@ class BoardWorker:
                     session.commit()
                     self._sleep_for = _IDLE_SLEEP
                     return True
-                self._last_sent = chars
                 run.last_sent = chars
+                run.last_frame_hash = frame_hash
                 board.last_painted_at = now
                 board.status = "ok"
 
