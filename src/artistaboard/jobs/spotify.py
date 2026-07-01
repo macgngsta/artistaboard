@@ -99,6 +99,10 @@ class SpotifyJob(Job):
         # A single now-playing item is already the full dataset; None when nothing plays.
         return {"now_playing": jsonable(self.fetch())}
 
+    def from_snapshot(self, payload: dict[str, Any]) -> NowPlaying | None:
+        now = payload.get("now_playing")
+        return NowPlaying(**now) if now else None
+
     def bind(self, data: NowPlaying | None) -> dict[str, Any]:
         if data is None:
             return {}  # scene's fallback renders "NOTHING PLAYING"

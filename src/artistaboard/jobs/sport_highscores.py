@@ -88,6 +88,17 @@ def parse_games(payload: dict) -> list[Game]:
     return games
 
 
+def _game_from_dict(d: dict) -> Game:
+    """Rebuild a Game from a snapshot payload: nested Team dicts and a serialized
+    start timestamp (inverse of jsonable)."""
+    d = dict(d)
+    start = d.get("start")
+    d["start"] = datetime.fromisoformat(start) if start else None
+    d["home"] = Team(**d["home"])
+    d["away"] = Team(**d["away"])
+    return Game(**d)
+
+
 def game_status(g: Game) -> str:
     if g.state == "post":
         return "FINAL"
@@ -163,6 +174,10 @@ class SportHighScoresJob(Job):
             "league": self._league(),
             "polled_at": datetime.now().isoformat(),
         }
+
+    def from_snapshot(self, payload: dict[str, Any]) -> Game | None:
+        games = [_game_from_dict(g) for g in payload.get("games", [])]
+        return self.select_game(games, datetime.now())
 
     def bind(self, data: Game | None) -> dict[str, Any]:
         if data is None:

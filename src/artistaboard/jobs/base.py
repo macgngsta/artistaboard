@@ -107,6 +107,13 @@ class Job(ABC):
         persists this; the paint path reads it back and selects/filters at render."""
         raise NotImplementedError(f"{type(self).__name__} does not support polling")
 
+    def from_snapshot(self, payload: dict[str, Any]) -> Any:
+        """Reconstruct the same *selected* data ``fetch`` returns, but from a stored
+        :meth:`poll` payload — deserialize the full dataset and apply this job's
+        selection/filter. The render path feeds the result to :meth:`render`/:meth:`bind`,
+        so painting reads the DB instead of an API (falling back to ``fetch`` on a miss)."""
+        raise NotImplementedError(f"{type(self).__name__} does not support snapshot reads")
+
     def bind(self, data: Any) -> dict[str, Any] | None:
         """Map fetched data to a flat render envelope (``None`` when there's no
         data to show). Declarative jobs implement this instead of :meth:`render`."""
