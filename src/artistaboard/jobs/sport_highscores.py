@@ -20,6 +20,7 @@ from pydantic import Field
 from ..http import get_json
 from ..rotation import rotate_index
 from .base import Job, JobOptions, jsonable
+from .espn import event_sides, parse_iso, to_int
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/{league}/scoreboard"
 NAME_WIDTH = 9  # region F/I width
@@ -48,41 +49,33 @@ class Game:
         return self.state == "in"
 
 
-def _parse_dt(value: str) -> datetime | None:
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
-
-
 def _team(competitor: dict) -> Team:
     t = competitor.get("team", {})
     return Team(
         abbr=t.get("abbreviation", "?"),
         name=t.get("name", t.get("abbreviation", "?")),
-        score=int(competitor.get("score") or 0),
+        score=to_int(competitor.get("score")),
     )
 
 
 def parse_games(payload: dict) -> list[Game]:
     games: list[Game] = []
     for e in payload.get("events", []):
-        comp = (e.get("competitions") or [{}])[0]
-        sides = {c.get("homeAway"): c for c in comp.get("competitors", [])}
-        if "home" not in sides or "away" not in sides:
+        home_c, away_c = event_sides(e)
+        if not home_c or not away_c:
             continue
         status = e.get("status", {})
         st = status.get("type", {})
         games.append(
             Game(
                 id=str(e.get("id", "")),
-                home=_team(sides["home"]),
-                away=_team(sides["away"]),
+                home=_team(home_c),
+                away=_team(away_c),
                 state=st.get("state", "pre"),
                 detail=st.get("shortDetail", ""),
                 clock=status.get("displayClock", ""),
-                period=int(status.get("period") or 0),
-                start=_parse_dt(e.get("date", "")),
+                period=to_int(status.get("period")),
+                start=parse_iso(e.get("date", "")),
             )
         )
     return games
