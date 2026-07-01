@@ -12,13 +12,20 @@ export function collectVariables(
   const names = new Set<string>();
   const colorKeys = new Set<string>();
 
+  const addColorData = (spec: unknown) => {
+    if (spec && typeof spec === "object" && "data" in spec) {
+      const key = (spec as { data: unknown }).data;
+      if (typeof key === "string") {
+        names.add(key);
+        colorKeys.add(key);
+      }
+    }
+  };
+
   for (const region of Object.values(document.render ?? {})) {
     if (region.bind) names.add(region.bind);
-    const color = region.color;
-    if (color && typeof color === "object" && "data" in color && typeof color.data === "string") {
-      names.add(color.data);
-      colorKeys.add(color.data);
-    }
+    addColorData(region.color);
+    addColorData(region.fill); // glyph background color can also be {data:key}
   }
   // Keep any server-known variable even if the bind was just removed mid-edit.
   for (const v of serverVars) names.add(v.name);

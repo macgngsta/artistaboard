@@ -9,7 +9,7 @@ import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/api/errors";
 import type { RequiredVariable, SceneDocument, SceneIn } from "@/api/types";
 import { useDebounced } from "@/lib/useDebounced";
-import { useScene, useUpdateScene, useCreateScene, previewScene } from "./api";
+import { useScene, useUpdateScene, useCreateScene, previewWithAutoSeed } from "./api";
 import { useSceneEditor } from "./store";
 import { collectVariables, seedSampleData } from "./variables";
 import { GridEditor } from "./GridEditor";
@@ -42,7 +42,7 @@ export function SceneDesignerPage() {
   const preview = useQuery({
     queryKey: ["preview", debouncedDoc, debouncedSample],
     enabled: ed.loadedId === sceneId,
-    queryFn: () => previewScene(debouncedDoc, debouncedSample),
+    queryFn: () => previewWithAutoSeed(debouncedDoc, debouncedSample),
     placeholderData: (prev) => prev, // keep the last good frame on a 422
     retry: false,
   });
