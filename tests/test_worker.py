@@ -19,23 +19,23 @@ def _fill_doc(color):
     return {"grid": ["AAAAAAAAAAAAAAAAAAAAAA"] * 6, "render": {"A": {"as": "fill", "color": color}}}
 
 
-class FakeClient:
-    sends: list = []
-
-    def __init__(self, key, min_interval=15):
-        self.key = key
-
-    def send(self, characters):
-        FakeClient.sends.append(characters)
-        return {"status": "ok"}
-
-    def close(self):
-        pass
-
-
 @pytest.fixture
 def setup(tmp_path, monkeypatch):
-    FakeClient.sends = []
+    # `sends` is owned by this fixture (per-test), so parallel runs don't share state.
+    # The worker builds its own client, so a closure over `sends` is how the test sees it.
+    sends: list = []
+
+    class FakeClient:
+        def __init__(self, key, min_interval=15):
+            self.key = key
+
+        def send(self, characters):
+            sends.append(characters)
+            return {"status": "ok"}
+
+        def close(self):
+            pass
+
     monkeypatch.setattr(worker_mod, "VestaboardClient", FakeClient)
     settings = Settings(_env_file=None, database_url=f"sqlite:///{tmp_path}/w.db")
     init_engine(settings.database_url)
@@ -65,18 +65,18 @@ def setup(tmp_path, monkeypatch):
         s.add(BoardRun(board_id=board.id, owner_id=user.id, pipeline_id=pipe.id, state="running"))
         s.commit()
         board_id = board.id
-    return settings, board_id
+    return settings, board_id, sends
 
 
 def test_tick_sends_holds_then_advances(setup):
-    settings, board_id = setup
+    settings, board_id, sends = setup
     w = BoardWorker(board_id, settings)
 
     assert w._tick() is True
-    assert len(FakeClient.sends) == 1  # first frame (red) sent
+    assert len(sends) == 1  # first frame (red) sent
 
     assert w._tick() is True
-    assert len(FakeClient.sends) == 1  # within window, same frame -> skipped
+    assert len(sends) == 1  # within window, same frame -> skipped
 
     # force the first entry's window to have elapsed, then tick advances to blue
     with Session(get_engine()) as s:
@@ -89,26 +89,26 @@ def test_tick_sends_holds_then_advances(setup):
         s.commit()
 
     assert w._tick() is True
-    assert len(FakeClient.sends) == 2  # advanced -> distinct frame sent
-    assert FakeClient.sends[1] != FakeClient.sends[0]
+    assert len(sends) == 2  # advanced -> distinct frame sent
+    assert sends[1] != sends[0]
 
 
 def test_restart_does_not_resend_same_frame(setup):
-    settings, board_id = setup
+    settings, board_id, sends = setup
     assert BoardWorker(board_id, settings)._tick() is True
-    assert len(FakeClient.sends) == 1  # first frame sent
+    assert len(sends) == 1  # first frame sent
 
     # A fresh worker (restart: the in-memory guard is gone) must skip the identical
     # frame by reading back the persisted fingerprint rather than re-flapping the board.
     assert BoardWorker(board_id, settings)._tick() is True
-    assert len(FakeClient.sends) == 1
+    assert len(sends) == 1
 
     with Session(get_engine()) as s:
         assert s.get(BoardRun, board_id).last_frame_hash is not None
 
 
 def test_tick_stops_when_run_not_running(setup):
-    settings, board_id = setup
+    settings, board_id, _ = setup
     with Session(get_engine()) as s:
         run = s.get(BoardRun, board_id)
         run.state = "stopped"
