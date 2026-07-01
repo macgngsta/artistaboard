@@ -27,3 +27,14 @@ def test_preview_requires_auth(client):
 
 def test_preview_invalid_document_is_422(auth_client):
     assert auth_client.post("/preview", json={"document": ["nope"] * 6}).status_code == 422
+
+
+def test_preview_missing_data_key_returns_structured_422(auth_client):
+    # A color bound to {data: k} with no value → structured 422 exposing the key,
+    # so the client can seed it without parsing the message.
+    doc = _clock_doc(auth_client)  # clock binds time_color via {data: time_color}
+    resp = auth_client.post("/preview", json={"document": doc, "sample_data": {"time": "14:30", "tz": "PT"}})
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert detail["missing_key"] == "time_color"
+    assert "cannot render scene" in detail["message"]

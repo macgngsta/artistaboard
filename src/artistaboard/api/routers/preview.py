@@ -24,5 +24,9 @@ def preview(body: PreviewIn, user: CurrentUser, settings: SettingsDep) -> Previe
         render_scene(scene, body.sample_data, settings)
         characters = scene.to_characters()
     except (KeyError, ValueError, TypeError) as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"cannot render scene: {exc}") from exc
+        # Structured detail: a missing sample_data key raises KeyError(key); expose it
+        # cleanly so the client can seed it without regex-parsing the message.
+        missing_key = exc.args[0] if isinstance(exc, KeyError) and exc.args else None
+        detail = {"message": f"cannot render scene: {exc}", "missing_key": missing_key}
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail) from exc
     return PreviewOut(rows=len(characters), cols=len(characters[0]) if characters else 0, characters=characters)

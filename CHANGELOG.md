@@ -9,6 +9,7 @@ tracker (`claude-sync/coordination/artistaboard/progress.md`); plans of record a
 React 19 + Vite + TS SPA in `web/`, served same-origin by FastAPI. Typed client generated from
 `/openapi.json`; `POST /preview` is the sole scene renderer. Plan: `docs/plans/active/web-frontend.md`.
 
+- **#52** `web-ci-tests` — Vitest + a `web` CI job (typecheck/lint/test/build); 18 tests over codes/variables/store/`previewWithAutoSeed`. `web/` errors no longer merge green.
 - **#48** `region-dropdown` — Region editor header is a dropdown (badge + "Region X") to switch regions instead of targeting small grid badges.
 - **#47** `designer-color-layout` — Color-by-name dropdowns (swatch + word) for color sample vars and solid region colors; sample-data fields show which region uses each variable; relayout (region options under the painter, sample data under the preview).
 - **#45** `light-mode` — Light/dark theme toggle (persisted) by inverting the Tailwind `neutral` scale under `.light`; board depictions stay fixed-dark.

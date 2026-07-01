@@ -79,7 +79,10 @@ export async function previewWithAutoSeed(
       return await previewScene(document, sample);
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) {
-        const key = MISSING_KEY_RE.exec(e.message)?.[1];
+        // Prefer the structured missing_key; fall back to parsing the message for
+        // older backends that only return the string form.
+        const structured = (e.detail as { missing_key?: string } | undefined)?.missing_key;
+        const key = structured ?? MISSING_KEY_RE.exec(e.message)?.[1];
         if (key && !(key in sample)) {
           sample[key] = 69; // white chip / harmless number for a threshold compare
           continue;
