@@ -52,6 +52,8 @@ def leader_color(mine: int, theirs: int, *, final: bool = False, scheme: str = "
         return codes.WHITE
     if scheme == "green":
         return codes.GREEN
+    if scheme == "red_blue":
+        return codes.BLUE if final else codes.RED
     return codes.BLUE if final else codes.VIOLET
 
 

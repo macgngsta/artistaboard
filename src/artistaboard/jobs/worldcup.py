@@ -179,6 +179,8 @@ class WorldCupJob(Job):
         live = [m for m in matches if is_live(m, now)]
         if live:
             return live
+        if self.settings.worldcup_live_only:
+            return []  # pinned to live games: nothing in play -> "NO MATCHES"
         upcoming = sorted((m for m in matches if m.kickoff and m.kickoff >= now), key=lambda m: m.kickoff)
         return upcoming[:1] or matches[:1]
 
@@ -219,7 +221,7 @@ class WorldCupJob(Job):
         if final:
             g_text = i_text = ""
         elif live:
-            g_text, i_text = _elapsed(m), ""
+            g_text, i_text = _split_elapsed(m)
         elif m.kickoff:
             g_text, i_text = m.kickoff.strftime("%b %d").upper(), m.kickoff.strftime("%H:%M")
         else:
@@ -248,10 +250,16 @@ class WorldCupJob(Job):
         final = m.finished
         # An accent pixel right after each name, in that team's score colour.
         self._accent(
-            scene, "F", _short(m.home, m.home_code, _NAME_WIDTH), leader_color(m.home_score, m.away_score, final=final)
+            scene,
+            "F",
+            _short(m.home, m.home_code, _NAME_WIDTH),
+            leader_color(m.home_score, m.away_score, final=final, scheme="red_blue"),
         )
         self._accent(
-            scene, "H", _short(m.away, m.away_code, _NAME_WIDTH), leader_color(m.away_score, m.home_score, final=final)
+            scene,
+            "H",
+            _short(m.away, m.away_code, _NAME_WIDTH),
+            leader_color(m.away_score, m.home_score, final=final, scheme="red_blue"),
         )
         # A WIN banner on the winner's row at full time.
         if final and m.home_score > m.away_score:
@@ -287,3 +295,11 @@ def _short(name: str, code: str, width: int) -> str:
 def _elapsed(m: Match) -> str:
     """Live clock for region G: the minute (``67'``) or the feed's own label (``HT``)."""
     return f"{m.elapsed}'" if m.elapsed.isdigit() else m.elapsed.upper()
+
+
+def _split_elapsed(m: Match) -> tuple[str, str]:
+    """Split the live clock into (base minute, stoppage) so ``90'+4'`` shows the
+    base on the home row (G) and ``+4'`` on the away row (I)."""
+    text = _elapsed(m)
+    base, sep, added = text.partition("+")
+    return base, f"+{added}" if sep else ""

@@ -133,13 +133,22 @@ def test_render_prematch_names_dates_and_white_accents():
     assert "13:00" in _row_text(scene, "I")
 
 
-def test_render_live_leader_violet_and_elapsed_clock():
+def test_render_live_leader_red_and_elapsed_clock():
     job = WorldCupJob(Settings(_env_file=None))
     scene = job.render(_match(home_score=2, away_score=1, elapsed="67"))
-    assert codes.VIOLET in _colors(scene, "A")  # home leads -> violet while live
-    assert codes.VIOLET not in _colors(scene, "B")  # away trails -> white
+    assert codes.RED in _colors(scene, "A")  # home leads -> red while live
+    assert codes.RED not in _colors(scene, "B")  # away trails -> white
+    assert codes.RED in _colors(scene, "F")  # leader's name accent is red too
     assert "67'" in _row_text(scene, "G")  # elapsed minute on G, no banner
     assert codes.GREEN not in _colors(scene, "G")
+
+
+def test_render_live_stoppage_time_splits_to_away_row():
+    job = WorldCupJob(Settings(_env_file=None))
+    scene = job.render(_match(home_score=1, away_score=0, elapsed="90'+4'"))
+    assert "90'" in _row_text(scene, "G")  # base minute stays on the home row
+    assert "+4'" in _row_text(scene, "I")  # stoppage moves to the away row
+    assert "+4'" not in _row_text(scene, "G")
 
 
 def test_render_final_blue_leader_win_banner_and_final_label():
