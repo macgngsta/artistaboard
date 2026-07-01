@@ -7,6 +7,7 @@ export interface WorkingEntry {
   job_name: string;
   scene_id: string;
   data_source: string;
+  options: Record<string, unknown>; // per-job typed overrides; empty = inherit
   duration_seconds: number;
   refresh_seconds: string; // "" = none
 }
@@ -22,6 +23,7 @@ export function emptyEntry(): WorkingEntry {
     job_name: "clock",
     scene_id: "",
     data_source: "",
+    options: {},
     duration_seconds: 60,
     refresh_seconds: "",
   };
@@ -34,9 +36,19 @@ export function fromPipeline(pipeline: Pipeline): WorkingEntry[] {
     job_name: e.job_name ?? "",
     scene_id: e.scene_id ?? "",
     data_source: e.data_source ?? "",
+    options: (e.options ?? {}) as Record<string, unknown>,
     duration_seconds: e.duration_seconds,
     refresh_seconds: e.refresh_seconds == null ? "" : String(e.refresh_seconds),
   }));
+}
+
+// Drop keys the user left unset so we send only real overrides (the backend
+// treats an absent option as "inherit the global config default").
+function prunedOptions(options: Record<string, unknown>): Record<string, unknown> | undefined {
+  const entries = Object.entries(options).filter(
+    ([, v]) => v !== "" && v !== undefined && v !== null,
+  );
+  return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
 // Serialize to the API shape. Positions are implied by array order (the backend
@@ -55,6 +67,7 @@ export function toEntryIn(e: WorkingEntry): PipelineEntryIn {
   return {
     source_type: "job",
     job_name: e.job_name,
+    options: prunedOptions(e.options),
     duration_seconds: e.duration_seconds,
     refresh_seconds: refresh,
   };

@@ -21,6 +21,7 @@ import type { PipelineIn } from "@/api/types";
 import { useScenes } from "@/features/scenes/api";
 import { useBoards, useAssignPipeline, useStartBoard } from "@/features/boards/api";
 import { usePipeline, useUpdatePipeline } from "./api";
+import { useJobs } from "./jobs";
 import { PipelineEntryRow } from "./PipelineEntryRow";
 import { NowPlaying } from "./NowPlaying";
 import { emptyEntry, fromPipeline, toEntryIn, type WorkingEntry } from "./entry";
@@ -31,6 +32,7 @@ export function PipelineEditorPage() {
   const { data: pipeline, isLoading } = usePipeline(pipelineId);
   const { data: scenes } = useScenes();
   const { data: boards } = useBoards();
+  const { data: jobs } = useJobs();
 
   const [name, setName] = useState("");
   const [loop, setLoop] = useState(true);
@@ -153,6 +155,7 @@ export function PipelineEditorPage() {
                     key={entry.key}
                     entry={entry}
                     scenes={scenes ?? []}
+                    jobs={jobs ?? []}
                     onChange={(patch) => patchEntry(entry.key, patch)}
                     onRemove={() => removeEntry(entry.key)}
                   />
