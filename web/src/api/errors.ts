@@ -11,6 +11,12 @@ export class ApiError extends Error {
   }
 }
 
+// An ApiError already carries a normalized user-facing message; anything else
+// (network failure, unexpected throw) falls back to the caller's phrasing.
+export function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof ApiError ? e.message : fallback;
+}
+
 type ValidationItem = { loc?: (string | number)[]; msg?: string };
 
 export function messageFromDetail(detail: unknown, fallback: string): string {

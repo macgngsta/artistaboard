@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Square, Radio } from "lucide-react";
 import { Button, Badge, Spinner } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/api/errors";
+import { errorMessage } from "@/api/errors";
 import type { Pipeline } from "@/api/types";
 import { useBoardRun, useStopBoard } from "@/features/boards/api";
 
@@ -52,7 +52,7 @@ export function NowPlaying({ boardId, pipeline }: { boardId: string; pipeline: P
       await stop.mutateAsync(boardId);
       toast.success("Stopped");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not stop");
+      toast.error(errorMessage(e, "Could not stop"));
     }
   }
 

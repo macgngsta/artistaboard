@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/AppLayout";
 import { BoardGrid } from "@/components/BoardGrid";
 import { Button, Card, Input, Spinner } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/api/errors";
+import { ApiError, errorMessage } from "@/api/errors";
 import type { RequiredVariable, SceneDocument, SceneIn } from "@/api/types";
 import { useDebounced } from "@/lib/useDebounced";
 import { useScene, useUpdateScene, useCreateScene, previewWithAutoSeed } from "./api";
@@ -52,7 +52,7 @@ export function SceneDesignerPage() {
       <div className="flex min-h-screen items-center justify-center">
         {error ? (
           <p className="text-sm text-red-400">
-            {error instanceof ApiError ? error.message : "Failed to load scene"}
+            {errorMessage(error, "Failed to load scene")}
           </p>
         ) : (
           <Spinner className="h-6 w-6" />
@@ -75,7 +75,7 @@ export function SceneDesignerPage() {
       await updateScene.mutateAsync({ id: ed.loadedId!, body });
       toast.success("Scene saved");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not save scene");
+      toast.error(errorMessage(e, "Could not save scene"));
     }
   }
 
@@ -90,7 +90,7 @@ export function SceneDesignerPage() {
       toast.success("Duplicated — now editable");
       navigate(`/scenes/${copy.id}`);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not duplicate scene");
+      toast.error(errorMessage(e, "Could not duplicate scene"));
     }
   }
 

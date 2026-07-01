@@ -146,16 +146,6 @@ def is_live(m: Match, now: datetime) -> bool:
     return m.kickoff is not None and m.kickoff <= now < m.kickoff + LIVE_WINDOW
 
 
-def match_status(m: Match, now: datetime) -> str:
-    if m.finished:
-        return "FT"
-    if m.elapsed not in ("", "notstarted"):
-        return f"{m.elapsed}'" if m.elapsed.isdigit() else m.elapsed.upper()
-    if m.kickoff is not None:
-        return m.kickoff.strftime("%H:%M")
-    return "TBD"
-
-
 def stage_lines(m: Match) -> tuple[str, str]:
     """The 2nd and 3rd metadata lines (line 1 is always WORLD CUP)."""
     if m.stage == "group":

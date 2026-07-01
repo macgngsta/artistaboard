@@ -3,7 +3,7 @@ import { Plus, Plug, Pencil, Trash2, KeyRound } from "lucide-react";
 import { PageHeader } from "@/components/AppLayout";
 import { Button, Card, Badge, Spinner } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
-import { ApiError } from "@/api/errors";
+import { errorMessage } from "@/api/errors";
 import type { Board } from "@/api/types";
 import { useBoards, useDeleteBoard, useTestBoard } from "./api";
 import { BoardFormDialog } from "./BoardFormDialog";
@@ -39,7 +39,7 @@ export function BoardsPage() {
         result.status === "ok" ? "Board reachable" : `Board ${result.status}`,
       );
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Test failed");
+      toast.error(errorMessage(e, "Test failed"));
     } finally {
       setBusyId(null);
     }
@@ -52,7 +52,7 @@ export function BoardsPage() {
       await deleteBoard.mutateAsync(board.id);
       toast.success("Board deleted");
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not delete board");
+      toast.error(errorMessage(e, "Could not delete board"));
     } finally {
       setBusyId(null);
     }

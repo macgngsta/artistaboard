@@ -43,16 +43,20 @@ def _validate_entry(entry: PipelineEntryIn, user_id: str, session: SessionDep) -
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"bad source_type {entry.source_type!r}")
 
 
-def _out(session: SessionDep, pipeline: Pipeline) -> PipelineOut:
-    rows = session.exec(
-        select(PipelineEntry).where(PipelineEntry.pipeline_id == pipeline.id).order_by(PipelineEntry.position)
-    ).all()
+def _to_out(pipeline: Pipeline, rows: list[PipelineEntry]) -> PipelineOut:
     return PipelineOut(
         id=pipeline.id,
         name=pipeline.name,
         loop=pipeline.loop,
         entries=[PipelineEntryOut.model_validate(r, from_attributes=True) for r in rows],
     )
+
+
+def _out(session: SessionDep, pipeline: Pipeline) -> PipelineOut:
+    rows = session.exec(
+        select(PipelineEntry).where(PipelineEntry.pipeline_id == pipeline.id).order_by(PipelineEntry.position)
+    ).all()
+    return _to_out(pipeline, rows)
 
 
 def _replace_entries(session: SessionDep, pipeline_id: str, entries: list[PipelineEntryIn], user_id: str) -> None:
@@ -85,7 +89,17 @@ def _own_pipeline(session: SessionDep, pipeline_id: str, user_id: str) -> Pipeli
 @router.get("", response_model=list[PipelineOut])
 def list_pipelines(user: CurrentUser, session: SessionDep) -> list[PipelineOut]:
     rows = session.exec(select(Pipeline).where(Pipeline.owner_id == user.id)).all()
-    return [_out(session, p) for p in rows]
+    if not rows:
+        return []
+    entries = session.exec(
+        select(PipelineEntry)
+        .where(PipelineEntry.pipeline_id.in_([p.id for p in rows]))
+        .order_by(PipelineEntry.pipeline_id, PipelineEntry.position)
+    ).all()
+    by_pipeline: dict[str, list[PipelineEntry]] = {}
+    for entry in entries:
+        by_pipeline.setdefault(entry.pipeline_id, []).append(entry)
+    return [_to_out(p, by_pipeline.get(p.id, [])) for p in rows]
 
 
 @router.post("", response_model=PipelineOut, status_code=status.HTTP_201_CREATED)

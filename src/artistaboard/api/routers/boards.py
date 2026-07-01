@@ -24,6 +24,12 @@ def _own_board(session: SessionDep, board_id: str, user_id: str) -> Board:
     return board
 
 
+def _apply_key(board: Board, rw_key: str, settings: SettingsDep) -> None:
+    board.rw_key_encrypted = encrypt(rw_key, settings.encryption_secret)
+    board.rw_key_last4 = rw_key[-4:]
+    board.status = "ok"
+
+
 @router.get("", response_model=list[BoardOut])
 def list_boards(user: CurrentUser, session: SessionDep) -> list[BoardOut]:
     rows = session.exec(select(Board).where(Board.owner_id == user.id)).all()
@@ -34,9 +40,7 @@ def list_boards(user: CurrentUser, session: SessionDep) -> list[BoardOut]:
 def create_board(body: BoardIn, user: CurrentUser, session: SessionDep, settings: SettingsDep) -> BoardOut:
     board = Board(owner_id=user.id, name=body.name, model=body.model, min_send_interval=body.min_send_interval)
     if body.rw_key:
-        board.rw_key_encrypted = encrypt(body.rw_key, settings.encryption_secret)
-        board.rw_key_last4 = body.rw_key[-4:]
-        board.status = "ok"
+        _apply_key(board, body.rw_key, settings)
     session.add(board)
     session.commit()
     session.refresh(board)
@@ -57,9 +61,7 @@ def update_board(
     board.model = body.model
     board.min_send_interval = body.min_send_interval
     if body.rw_key:  # only replace the key when a new one is supplied
-        board.rw_key_encrypted = encrypt(body.rw_key, settings.encryption_secret)
-        board.rw_key_last4 = body.rw_key[-4:]
-        board.status = "ok"
+        _apply_key(board, body.rw_key, settings)
     session.add(board)
     session.commit()
     session.refresh(board)
