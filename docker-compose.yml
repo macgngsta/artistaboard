@@ -8,4 +8,12 @@ services:
         required: false
     environment:
       - VESTABOARD_DATA_DIR=/app
+      # Persist the SQLite DB on a named volume so board/pipeline/scene state and
+      # data_snapshots survive image rebuilds (app assets stay baked into /app).
+      - DATABASE_URL=sqlite:////data/artistaboard.db
+    volumes:
+      - board-data:/data
     restart: unless-stopped
+
+volumes:
+  board-data:
