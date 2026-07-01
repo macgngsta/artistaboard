@@ -36,7 +36,7 @@ def get_json(
     ``httpx.HTTPStatusError`` on a 4xx or a final 5xx, or the last transport error
     if every attempt fails.
     """
-    last_exc: Exception
+    last_exc: Exception | None = None
     for attempt in range(retries + 1):
         try:
             resp = httpx.get(url, params=params, headers=headers, timeout=timeout)
@@ -52,4 +52,6 @@ def get_json(
             wait = BACKOFF_SECONDS * (attempt + 1)
             log.warning("GET %s failed (%s); retry %d/%d in %.1fs", url, last_exc, attempt + 1, retries, wait)
             time.sleep(wait)
+    # Reached only when the final attempt failed without returning, so last_exc is set.
+    assert last_exc is not None
     raise last_exc
