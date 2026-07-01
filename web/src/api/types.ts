@@ -12,6 +12,8 @@ export type PipelineEntry = components["schemas"]["PipelineEntryOut"];
 export type PipelineEntryIn = components["schemas"]["PipelineEntryIn"];
 export type BoardRun = components["schemas"]["BoardRunOut"];
 export type PreviewOut = components["schemas"]["PreviewOut"];
+export type DataSource = components["schemas"]["DataSourceOut"];
+export type PollResult = components["schemas"]["PollResultOut"];
 
 // The OpenAPI schema types `document` and `required_variables` loosely (dict/unknown).
 // These interfaces capture the real shape the backend produces/consumes so the
