@@ -8,7 +8,7 @@
     "GGGGGGGG#FFFFFFFFFFFFF"
   ],
   "render": {
-    "A": {"bind": "line", "as": "glyphs", "font": "3x3pixels", "color": "blank", "fill": {"data": "badge_color"}},
+    "A": {"bind": "line", "as": "glyphs", "font": "3x3pixels", "color": "white", "fill": {"data": "badge_color"}},
     "B": {"bind": "countdown", "as": "glyphs", "font": "3by5", "color": {"rule": "imminent", "field": "soonest", "threshold": 5}},
     "C": {"bind": "arrival1", "as": "text"},
     "D": {"bind": "arrival2", "as": "text"},

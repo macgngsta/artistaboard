@@ -111,9 +111,9 @@ class MuniJob(Job):
             "destination": data.destination,
         }
         mins = data.minutes
-        if mins:  # soonest arrival is the big countdown; the rest are follow-up rows
+        if mins:  # soonest arrival is the big countdown and also leads the side list
             env["countdown"] = f"{mins[0]:02d}"
             env["soonest"] = mins[0]
-        for key, m in zip(("arrival1", "arrival2"), mins[1:], strict=False):
+        for key, m in zip(("arrival1", "arrival2"), mins, strict=False):
             env[key] = f"{m:02d} MIN"
         return env
