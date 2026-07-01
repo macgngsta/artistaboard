@@ -75,15 +75,15 @@ def test_render_populates_all_regions():
     )
     chars = scene.to_characters()
 
-    # A: violet badge with the route letter carved out (blank pixels inside the fill).
+    # A: violet badge with the route letter carved out in white inside the fill.
     a_codes = _region_codes(scene, "A")
-    assert codes.VIOLET in a_codes and codes.BLANK in a_codes
+    assert codes.VIOLET in a_codes and codes.WHITE in a_codes
 
     # B: the soonest arrival (8 >= 5 min) renders as a big WHITE countdown.
     assert codes.WHITE in _region_codes(scene, "B")
 
-    # C/D: the two arrivals after the headline as "NN MIN".
-    for region, mins in zip(("C", "D"), (25, 33), strict=True):
+    # C/D: the arrival list, led by the soonest (same as the headline), as "NN MIN".
+    for region, mins in zip(("C", "D"), (8, 25), strict=True):
         reg = scene.regions[region]
         row = chars[reg.row0]
         assert row[reg.col0 : reg.col0 + 2] == codes.text_to_codes(f"{mins:02d}")
