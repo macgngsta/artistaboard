@@ -19,7 +19,7 @@ import httpx
 from pydantic import Field
 
 from ..rotation import RotationState, select
-from .base import Job, JobOptions
+from .base import Job, JobOptions, jsonable
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/{league}/scoreboard"
 NAME_WIDTH = 9  # region F/I width
@@ -106,6 +106,7 @@ class SportHighScoresOptions(JobOptions):
     league: str | None = None  # ESPN sport/league path (e.g. "basketball/nba")
     rotate_seconds: int | None = Field(default=None, gt=0)
     override_map: ClassVar[dict[str, str]] = {"league": "sport_league", "rotate_seconds": "sport_rotate_seconds"}
+    fetch_defining: ClassVar[frozenset[str]] = frozenset({"league"})  # each league is its own series
 
 
 class SportHighScoresJob(Job):
@@ -146,10 +147,22 @@ class SportHighScoresJob(Job):
         )
         return chosen
 
+    def _league(self) -> str:
+        return self.settings.sport_league
+
+    def _scoreboard_payload(self) -> dict:
+        return httpx.get(SCOREBOARD_URL.format(league=self._league()), timeout=15.0).json()
+
     def fetch(self) -> Game | None:
-        url = SCOREBOARD_URL.format(league=self.settings.sport_league)
-        payload = httpx.get(url, timeout=15.0).json()
-        return self.select_game(parse_games(payload), datetime.now())
+        return self.select_game(parse_games(self._scoreboard_payload()), datetime.now())
+
+    def poll(self) -> dict[str, Any]:
+        # Every game in the league; live selection / rotation is applied at render.
+        return {
+            "games": jsonable(parse_games(self._scoreboard_payload())),
+            "league": self._league(),
+            "polled_at": datetime.now().isoformat(),
+        }
 
     def bind(self, data: Game | None) -> dict[str, Any]:
         if data is None:

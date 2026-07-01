@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
+from dataclasses import asdict, is_dataclass
+from datetime import datetime
 from typing import Annotated, Any, ClassVar
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict
@@ -12,6 +15,20 @@ from ..client import VestaboardClient
 from ..config import Settings
 from ..render import render_scene
 from ..scene import Scene
+
+
+def jsonable(value: Any) -> Any:
+    """Recursively convert a job's parsed data (frozen dataclasses, datetimes, lists)
+    into JSON-serializable primitives for a data_snapshot payload."""
+    if is_dataclass(value) and not isinstance(value, type):
+        value = asdict(value)
+    if isinstance(value, dict):
+        return {k: jsonable(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [jsonable(v) for v in value]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
 
 
 def _resolve_color_option(value: object) -> int | None:
@@ -40,10 +57,21 @@ class JobOptions(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     override_map: ClassVar[dict[str, str]] = {}
+    # Options that define WHICH data to fetch (a Muni stop, a sport league) vs
+    # display-only options (a group filter, which line to show). The poller stores
+    # one snapshot series per (source, fetch-defining identity); display options are
+    # applied at render over that snapshot, so they don't split the series.
+    fetch_defining: ClassVar[frozenset[str]] = frozenset()
 
     def to_overrides(self) -> dict[str, Any]:
         data = self.model_dump(exclude_none=True)
         return {self.override_map.get(k, k): v for k, v in data.items()}
+
+    def source_key(self) -> str:
+        """Stable identity over just the fetch-defining options ('' when none are set
+        — the source has a single series shared by all entries that use it)."""
+        data = {k: v for k, v in self.model_dump(exclude_none=True).items() if k in self.fetch_defining}
+        return json.dumps(data, sort_keys=True, default=str) if data else ""
 
 
 class Job(ABC):
@@ -71,6 +99,13 @@ class Job(ABC):
     @abstractmethod
     def fetch(self) -> Any:
         """Get whatever data this job needs to draw."""
+
+    def poll(self) -> dict[str, Any]:
+        """Fetch this source's FULL normalized dataset as a JSON payload for a
+        data_snapshot — everything a board might display (every match, all lines at a
+        stop), not the single selected/filtered item ``fetch`` returns. The poller
+        persists this; the paint path reads it back and selects/filters at render."""
+        raise NotImplementedError(f"{type(self).__name__} does not support polling")
 
     def bind(self, data: Any) -> dict[str, Any] | None:
         """Map fetched data to a flat render envelope (``None`` when there's no

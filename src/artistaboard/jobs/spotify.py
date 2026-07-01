@@ -19,7 +19,7 @@ from urllib.parse import urlencode
 
 import httpx
 
-from .base import Job
+from .base import Job, jsonable
 
 AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
@@ -94,6 +94,10 @@ class SpotifyJob(Job):
             return None
         resp.raise_for_status()
         return parse_now_playing(resp.json())
+
+    def poll(self) -> dict[str, Any]:
+        # A single now-playing item is already the full dataset; None when nothing plays.
+        return {"now_playing": jsonable(self.fetch())}
 
     def bind(self, data: NowPlaying | None) -> dict[str, Any]:
         if data is None:
