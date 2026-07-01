@@ -45,8 +45,11 @@ jobs:
       - run: npm ci
         working-directory: web
       - name: Start backend
+        # Launch via the venv python, not `uv run`: a lingering `uv` process holds the
+        # uv cache lock, which hangs setup-uv's post-job cache prune for 300s.
         run: |
-          uv run python -m artistaboard serve &
+          .venv/bin/python -m artistaboard serve &
+          echo $! > /tmp/backend.pid
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:8000/openapi.json >/dev/null && break
             sleep 1
@@ -60,3 +63,6 @@ jobs:
             echo "::error::web/src/api/schema.d.ts is stale — run 'npm run gen:api' in web/ and commit the result."
             exit 1
           fi
+      - name: Stop backend
+        if: always()
+        run: kill "$(cat /tmp/backend.pid)" 2>/dev/null || true
