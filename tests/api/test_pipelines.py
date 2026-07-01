@@ -163,3 +163,18 @@ def test_update_replaces_entries(auth_client):
     )
     assert upd.status_code == 200
     assert [e["job_name"] for e in upd.json()["entries"]] == ["spotify"]
+
+
+def test_update_preserves_entry_ids_when_entries_unchanged(auth_client):
+    entries = [
+        {"source_type": "job", "job_name": "clock", "duration_seconds": 30},
+        {"source_type": "job", "job_name": "spotify", "duration_seconds": 60},
+    ]
+    created = auth_client.post("/pipelines", json={"name": "p", "entries": entries}).json()
+    ids_before = [e["id"] for e in created["entries"]]
+
+    # Rename only, same entries: ids must survive so a running board's
+    # BoardRun.current_entry_id keeps pointing at a real entry.
+    upd = auth_client.put(f"/pipelines/{created['id']}", json={"name": "renamed", "entries": entries})
+    assert upd.status_code == 200
+    assert [e["id"] for e in upd.json()["entries"]] == ids_before
