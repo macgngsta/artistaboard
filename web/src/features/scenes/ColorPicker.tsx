@@ -1,7 +1,8 @@
-import { COLOR_CODES, COLOR_NAME_TO_CODE } from "@/lib/codes";
+import { COLOR_NAME_TO_CODE } from "@/lib/codes";
 import type { ColorSpec } from "@/api/types";
 import { Input } from "@/components/ui/primitives";
 import { cn } from "@/lib/cn";
+import { ColorSelect } from "./ColorSelect";
 
 type Mode = "none" | "solid" | "data" | "rule";
 
@@ -45,10 +46,6 @@ export function ColorPicker({
   disabled?: boolean;
 }) {
   const mode = modeOf(value);
-  const chips = Object.entries(COLOR_CODES).map(([code, c]) => ({
-    code: Number(code),
-    ...c,
-  }));
 
   return (
     <div className="flex flex-col gap-2">
@@ -86,23 +83,11 @@ export function ColorPicker({
           </div>
 
           {mode === "solid" && (
-            <div className="flex flex-wrap gap-1.5">
-              {chips.map((chip) => (
-                <button
-                  key={chip.code}
-                  disabled={disabled}
-                  title={chip.name}
-                  onClick={() => onChange(chip.code)}
-                  className={cn(
-                    "h-7 w-7 rounded border",
-                    solidCode(value) === chip.code
-                      ? "border-white ring-2 ring-white/40"
-                      : "border-neutral-700",
-                  )}
-                  style={{ backgroundColor: chip.hex }}
-                />
-              ))}
-            </div>
+            <ColorSelect
+              value={solidCode(value) ?? undefined}
+              disabled={disabled}
+              onChange={(code) => onChange(code)}
+            />
           )}
 
           {mode === "data" && (
