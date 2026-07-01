@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from artistaboard import codes
 from artistaboard.config import Settings
@@ -65,16 +65,25 @@ def test_state_lookup_uses_data_file():
     assert job._state("ZZZ") == "ZZ"  # fallback to abbr[:2]
 
 
-def test_select_rotates_then_switches_on_score_change():
+def test_select_rotates_live_pool_by_clock():
     job = SportHighScoresJob(Settings(_env_file=None))
     job.settings.sport_rotate_seconds = 300
     a = _game(50, 48, gid="a")
     b = _game(60, 55, gid="b")
-    first = job.select_game([a, b], datetime(2026, 6, 28, 19, 0))
-    assert job.select_game([a, b], datetime(2026, 6, 28, 19, 2)).id == first.id
-    assert job.select_game([a, b], datetime(2026, 6, 28, 19, 6)).id != first.id
-    b2 = _game(60, 58, gid="b")  # score changed
-    assert job.select_game([a, b2], datetime(2026, 6, 28, 19, 7)).id == "b"
+    t0 = datetime(2026, 6, 28, 19, 0)
+    # Stable within a bucket; both live games shown across consecutive buckets.
+    assert job.select_game([a, b], t0).id == job.select_game([a, b], t0 + timedelta(seconds=120)).id
+    assert {job.select_game([a, b], t0 + timedelta(seconds=300 * k)).id for k in range(2)} == {"a", "b"}
+
+
+def test_single_pins_first_of_pool():
+    job = SportHighScoresJob(Settings(_env_file=None))
+    job.settings.sport_single = True
+    a = _game(50, 48, gid="a")
+    b = _game(60, 55, gid="b")
+    t0 = datetime(2026, 6, 28, 19, 0)
+    assert job.select_game([a, b], t0).id == "a"
+    assert job.select_game([a, b], t0 + timedelta(minutes=30)).id == "a"
 
 
 def test_render_big_scores_colored_by_leader():

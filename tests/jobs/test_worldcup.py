@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from artistaboard import codes
 from artistaboard.config import Settings
@@ -84,24 +84,31 @@ def _job_with_flags(flags):
     return job
 
 
-def test_select_rotates_then_switches_on_score_change():
+def test_select_rotates_live_pool_by_clock():
     flags = {"Scotland": ["blue"], "Morocco": ["red"], "Spain": ["red"], "Japan": ["white"]}
     a = _match(id="a", home="Scotland", away="Morocco", elapsed="20")
     b = _match(id="b", home="Spain", away="Japan", elapsed="20")
     job = _job_with_flags(flags)
     job.settings.worldcup_rotate_seconds = 300
 
-    first = job.select_match([a, b], datetime(2026, 6, 28, 14, 0))
-    # not enough time elapsed -> holds the same match
-    held = job.select_match([a, b], datetime(2026, 6, 28, 14, 2))
-    assert held.id == first.id
-    # 5+ minutes later -> rotates to the other live match
-    rotated = job.select_match([a, b], datetime(2026, 6, 28, 14, 6))
-    assert rotated.id != first.id
-    # a score change immediately wins the board
-    b2 = _match(id="b", home="Spain", away="Japan", elapsed="21", home_score=1)
-    after_goal = job.select_match([a, b2], datetime(2026, 6, 28, 14, 7))
-    assert after_goal.id == "b"
+    t0 = datetime(2026, 6, 28, 14, 0)
+    # Within one 300s bucket the pick is stable...
+    assert job.select_match([a, b], t0).id == job.select_match([a, b], t0 + timedelta(seconds=120)).id
+    # ...and across consecutive buckets both live matches get shown.
+    seen = {job.select_match([a, b], t0 + timedelta(seconds=300 * k)).id for k in range(2)}
+    assert seen == {"a", "b"}
+
+
+def test_single_pins_first_of_pool():
+    flags = {"Scotland": ["blue"], "Morocco": ["red"], "Spain": ["red"], "Japan": ["white"]}
+    a = _match(id="a", home="Scotland", away="Morocco", elapsed="20")
+    b = _match(id="b", home="Spain", away="Japan", elapsed="20")
+    job = _job_with_flags(flags)
+    job.settings.worldcup_single = True
+    # No rotation: the same match shows regardless of the clock.
+    t0 = datetime(2026, 6, 28, 14, 0)
+    assert job.select_match([a, b], t0).id == "a"
+    assert job.select_match([a, b], t0 + timedelta(minutes=30)).id == "a"
 
 
 def _colors(scene, label):

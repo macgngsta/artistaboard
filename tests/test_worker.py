@@ -93,6 +93,20 @@ def test_tick_sends_holds_then_advances(setup):
     assert FakeClient.sends[1] != FakeClient.sends[0]
 
 
+def test_restart_does_not_resend_same_frame(setup):
+    settings, board_id = setup
+    assert BoardWorker(board_id, settings)._tick() is True
+    assert len(FakeClient.sends) == 1  # first frame sent
+
+    # A fresh worker (restart: the in-memory guard is gone) must skip the identical
+    # frame by reading back the persisted fingerprint rather than re-flapping the board.
+    assert BoardWorker(board_id, settings)._tick() is True
+    assert len(FakeClient.sends) == 1
+
+    with Session(get_engine()) as s:
+        assert s.get(BoardRun, board_id).last_frame_hash is not None
+
+
 def test_tick_stops_when_run_not_running(setup):
     settings, board_id = setup
     with Session(get_engine()) as s:

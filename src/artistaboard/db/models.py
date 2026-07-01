@@ -114,6 +114,9 @@ class BoardRun(SQLModel, table=True):
     state: str = "stopped"  # running / paused / stopped
     rotation_state: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     last_sent: list[list[int]] | None = Field(default=None, sa_column=Column(JSON))
+    # Fingerprint of the last frame sent, so dedup survives a worker restart (the
+    # in-memory guard is lost) and observers can tell whether the board content moved.
+    last_frame_hash: str | None = None
     current_entry_id: str | None = None
     updated_at: datetime = Field(default_factory=_now)
 
