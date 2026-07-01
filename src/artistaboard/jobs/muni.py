@@ -145,6 +145,20 @@ class MuniJob(Job):
         # All lines/directions at the stop; the render path filters to what's shown.
         return parse_stop_full(self._stop_payload(), datetime.now(UTC))
 
+    def from_snapshot(self, payload: dict[str, Any]) -> MuniArrivals:
+        # Select this board's line from the full stop snapshot — same shape fetch()
+        # returns (soonest first, capped), but with no re-fetch.
+        line = self.settings.muni_line.upper()
+        rows = sorted(
+            (a for a in payload.get("arrivals", []) if str(a.get("line", "")).upper() == line),
+            key=lambda a: a["minutes"],
+        )[:MAX_ARRIVALS]
+        if not rows:
+            return MuniArrivals()
+        return MuniArrivals(
+            minutes=[a["minutes"] for a in rows], destination=rows[0]["destination"], direction=rows[0]["direction"]
+        )
+
     def bind(self, data: MuniArrivals) -> dict[str, Any]:
         # The badge fills with the configured line's own colour (the user picks the
         # line; L→violet, T→red) unless muni_color overrides it; the scene carves

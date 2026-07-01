@@ -32,6 +32,9 @@ class ClockJob(Job):
         # The clock's "full data" is just the moment; render formats it (tz/label).
         return {"iso": datetime.now().isoformat()}
 
+    def from_snapshot(self, payload: dict[str, Any]) -> datetime:
+        return datetime.fromisoformat(payload["iso"])
+
     def bind(self, data: datetime) -> dict[str, Any]:
         hhmm = data.strftime("%H:%M")
         return {"time": hhmm, "tz": self.settings.clock_tz_label[:2], "time_color": self.settings.clock_color}

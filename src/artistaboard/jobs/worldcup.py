@@ -129,6 +129,15 @@ def parse_espn(events: list[dict]) -> list[Match]:
     return out
 
 
+def _match_from_dict(d: dict) -> Match:
+    """Rebuild a Match from a snapshot payload (inverse of jsonable): kickoff was
+    serialized as an ISO string (or null)."""
+    d = dict(d)
+    kickoff = d.get("kickoff")
+    d["kickoff"] = datetime.fromisoformat(kickoff) if kickoff else None
+    return Match(**d)
+
+
 def is_live(m: Match, now: datetime) -> bool:
     if m.finished:
         return False
@@ -227,6 +236,10 @@ class WorldCupJob(Job):
     def poll(self) -> dict[str, Any]:
         # Every match in the window; the group filter / live selection is applied at render.
         return {"matches": jsonable(parse_espn(self._scoreboard_events())), "polled_at": datetime.now().isoformat()}
+
+    def from_snapshot(self, payload: dict[str, Any]) -> Match | None:
+        matches = [_match_from_dict(m) for m in payload.get("matches", [])]
+        return self.select_match(matches, datetime.now())
 
     def bind(self, data: Match | None) -> dict[str, Any]:
         if data is None:

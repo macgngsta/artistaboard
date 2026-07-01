@@ -21,7 +21,9 @@ from .config import Settings
 from .db.models import Pipeline as PipelineRow
 from .db.models import PipelineEntry as EntryRow
 from .db.models import Scene as SceneRow
-from .registry import build_job, options_overrides
+from .db.snapshots import latest_snapshot
+from .jobs.base import Job
+from .registry import build_job, options_overrides, source_key
 from .render import render_scene
 from .rotation import RotationState
 from .scene import Scene
@@ -105,15 +107,29 @@ def load_pipeline(session: Session, pipeline_id: str, rotation_state: dict | Non
     return Pipeline(pipeline_id, entries, loop, state)
 
 
+def _source_data(session: Session, job: Job, source: str, options: dict) -> object:
+    """The job's selected data, read from the latest data_snapshot for this source
+    (the poller keeps it fresh), falling back to a live ``fetch()`` on a miss — a
+    cold start, no poller running, or a job that doesn't support snapshot reads."""
+    snap = latest_snapshot(session, source, source_key(source, options))
+    if snap is not None:
+        try:
+            return job.from_snapshot(snap.payload)
+        except NotImplementedError:
+            pass
+    return job.fetch()
+
+
 def render_entry(entry: RuntimeEntry, settings: Settings, session: Session) -> Scene:
-    """Render one entry to a Scene. A job entry builds via its own job; a scene entry
-    renders the stored document, filling its variables from ``data_source``'s envelope
-    (a job's ``bind(fetch())``, auto-bound by name) or static when there's no source."""
+    """Render one entry to a Scene. Source data comes from the latest data_snapshot
+    (see :func:`_source_data`), so the paint path reads the DB rather than calling an
+    API; a scene entry fills its variables from ``data_source``'s bound envelope, or
+    renders static when there's no source."""
     if entry.source_type == "job":
         if not entry.job_name:
             raise ValueError("job entry missing job_name")
-        overrides = options_overrides(entry.job_name, entry.options)
-        return build_job(entry.job_name, settings, **overrides).build()
+        job = build_job(entry.job_name, settings, **options_overrides(entry.job_name, entry.options))
+        return job.render(_source_data(session, job, entry.job_name, entry.options))
     if entry.source_type == "scene":
         row = session.get(SceneRow, entry.scene_id)
         if row is None:
@@ -122,7 +138,7 @@ def render_entry(entry: RuntimeEntry, settings: Settings, session: Session) -> S
         envelope: dict = {}
         if entry.data_source:
             job = build_job(entry.data_source, settings, **options_overrides(entry.data_source, entry.options))
-            envelope = job.bind(job.fetch()) or {}
+            envelope = job.bind(_source_data(session, job, entry.data_source, entry.options)) or {}
         render_scene(scene, envelope, settings)
         return scene
     raise ValueError(f"unknown entry source_type {entry.source_type!r}")
