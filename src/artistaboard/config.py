@@ -30,9 +30,7 @@ def _default_data_dir() -> Path:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True)
 
     # Where scenes/ and fonts/ live. The Docker image sets VESTABOARD_DATA_DIR=/app.
     data_dir: Path = Field(default_factory=_default_data_dir, validation_alias="VESTABOARD_DATA_DIR")
