@@ -60,23 +60,27 @@ def _out(session: SessionDep, pipeline: Pipeline) -> PipelineOut:
 
 
 def _replace_entries(session: SessionDep, pipeline_id: str, entries: list[PipelineEntryIn], user_id: str) -> None:
-    for existing in session.exec(select(PipelineEntry).where(PipelineEntry.pipeline_id == pipeline_id)).all():
-        session.delete(existing)
+    # Update in place by position rather than delete-all-then-reinsert, so entry ids
+    # survive edits that don't shrink the list. A running board's BoardRun points at
+    # an entry id, so churning ids on every PUT (e.g. a rename) would silently
+    # disrupt its rotation.
+    existing = session.exec(
+        select(PipelineEntry).where(PipelineEntry.pipeline_id == pipeline_id).order_by(PipelineEntry.position)
+    ).all()
     for position, entry in enumerate(entries):
         _validate_entry(entry, user_id, session)
-        session.add(
-            PipelineEntry(
-                pipeline_id=pipeline_id,
-                position=position,
-                source_type=entry.source_type,
-                job_name=entry.job_name,
-                scene_id=entry.scene_id,
-                data_source=entry.data_source,
-                options=entry.options,
-                duration_seconds=entry.duration_seconds,
-                refresh_seconds=entry.refresh_seconds,
-            )
-        )
+        row = existing[position] if position < len(existing) else PipelineEntry(pipeline_id=pipeline_id)
+        row.position = position
+        row.source_type = entry.source_type
+        row.job_name = entry.job_name
+        row.scene_id = entry.scene_id
+        row.data_source = entry.data_source
+        row.options = entry.options
+        row.duration_seconds = entry.duration_seconds
+        row.refresh_seconds = entry.refresh_seconds
+        session.add(row)
+    for stale in existing[len(entries) :]:
+        session.delete(stale)
 
 
 def _own_pipeline(session: SessionDep, pipeline_id: str, user_id: str) -> Pipeline:
