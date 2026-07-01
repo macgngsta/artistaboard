@@ -1,0 +1,12 @@
+{
+  "name": "artistaboard-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "gen:api": "npm --prefix web run gen:api",
+    "lint": "npm --prefix web run lint",
+    "typecheck": "npm --prefix web run typecheck",
+    "web:install": "npm --prefix web install"
+  }
+}
