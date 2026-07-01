@@ -72,6 +72,35 @@ def parse_stop_monitoring(payload: dict, now: datetime, line: str | None = None)
     return MuniArrivals(minutes=[m for m, _, _ in entries], destination=entries[0][1], direction=entries[0][2])
 
 
+def parse_stop_full(payload: dict, now: datetime) -> dict[str, Any]:
+    """Every upcoming arrival at the stop, across all lines and directions — the full
+    dataset the poller stores. The render path filters this to the lines/directions a
+    board shows, so which line/direction is displayed can change without a re-fetch."""
+    delivery = payload.get("ServiceDelivery", {}).get("StopMonitoringDelivery", {})
+    if isinstance(delivery, list):
+        delivery = delivery[0] if delivery else {}
+    visits = delivery.get("MonitoredStopVisit", []) or []
+    arrivals: list[dict[str, Any]] = []
+    for visit in visits:
+        journey = visit.get("MonitoredVehicleJourney", {})
+        expected = journey.get("MonitoredCall", {}).get("ExpectedArrivalTime")
+        if not expected:
+            continue
+        delta = (datetime.fromisoformat(expected.replace("Z", "+00:00")) - now).total_seconds() / 60
+        if delta < 0:
+            continue
+        arrivals.append(
+            {
+                "line": str(journey.get("LineRef", "")).upper(),
+                "direction": _DIRECTIONS.get(str(journey.get("DirectionRef", "")).upper(), ""),
+                "destination": _clean_destination(journey.get("DestinationName")),
+                "minutes": round(delta),
+            }
+        )
+    arrivals.sort(key=lambda a: (a["line"], a["direction"], a["minutes"]))
+    return {"arrivals": arrivals, "polled_at": now.isoformat()}
+
+
 class MuniOptions(JobOptions):
     stop_code: str | None = None  # 511 stop code to monitor
     line: str | None = None  # route letter (J/K/L/M/N/T); picks the badge color
@@ -81,6 +110,9 @@ class MuniOptions(JobOptions):
         "line": "muni_line",
         "color": "muni_color",
     }
+    # The stop defines what to poll; line/color are display-only (one stop's snapshot
+    # serves every line shown from it), so only the stop splits the snapshot series.
+    fetch_defining: ClassVar[frozenset[str]] = frozenset({"stop_code"})
 
 
 class MuniJob(Job):
@@ -92,7 +124,7 @@ class MuniJob(Job):
     # binding the same envelope — the way the sport jobs share a layout shape.
     scene_name = "transit"
 
-    def fetch(self) -> MuniArrivals:
+    def _stop_payload(self) -> dict:
         key = self.settings.fiveoneone_api_key
         stop = self.settings.muni_stop_code
         if not key or not stop:
@@ -104,8 +136,14 @@ class MuniJob(Job):
         )
         resp.raise_for_status()
         # 511 serves JSON with a UTF-8 BOM; httpx .json() trips on it.
-        payload = httpx.Response(200, content=resp.content.decode("utf-8-sig").encode()).json()
-        return parse_stop_monitoring(payload, datetime.now(UTC), line=self.settings.muni_line.upper())
+        return httpx.Response(200, content=resp.content.decode("utf-8-sig").encode()).json()
+
+    def fetch(self) -> MuniArrivals:
+        return parse_stop_monitoring(self._stop_payload(), datetime.now(UTC), line=self.settings.muni_line.upper())
+
+    def poll(self) -> dict[str, Any]:
+        # All lines/directions at the stop; the render path filters to what's shown.
+        return parse_stop_full(self._stop_payload(), datetime.now(UTC))
 
     def bind(self, data: MuniArrivals) -> dict[str, Any]:
         # The badge fills with the configured line's own colour (the user picks the

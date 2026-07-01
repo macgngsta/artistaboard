@@ -36,6 +36,13 @@ def job_options_model(name: str) -> type[JobOptions]:
     return _job_type(name).Options
 
 
+def source_key(name: str, options: dict[str, Any] | None) -> str:
+    """The snapshot-series identity for a source given per-entry options — derived
+    from only the fetch-defining options, so entries that differ merely in display
+    options share one polled series ('' when the source has a single series)."""
+    return job_options_model(name).model_validate(options or {}).source_key()
+
+
 def options_overrides(name: str, options: dict[str, Any] | None) -> dict[str, Any]:
     """Validate a raw per-entry options dict against the job's schema and return the
     :class:`Settings` overrides it implies. Empty options -> no overrides (the entry

@@ -10,22 +10,18 @@ data and adds the winner's blue accent pixel via a ``post_render`` hook.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, ClassVar
 
-import httpx
 from pydantic import Field
 
 from .. import codes
 from ..scene import Scene
 from .base import JobOptions
 from .sport_highscores import (
-    SCOREBOARD_URL,
     Game,
     SportHighScoresJob,
     display_name,
     game_status,
-    parse_games,
 )
 
 
@@ -36,6 +32,7 @@ class SportLowScoresOptions(JobOptions):
         "league": "sport_lowscore_league",
         "rotate_seconds": "sport_rotate_seconds",
     }
+    fetch_defining: ClassVar[frozenset[str]] = frozenset({"league"})
 
 
 class SportLowScoresJob(SportHighScoresJob):
@@ -53,10 +50,8 @@ class SportLowScoresJob(SportHighScoresJob):
             return g.detail.upper()
         return game_status(g)
 
-    def fetch(self) -> Game | None:
-        url = SCOREBOARD_URL.format(league=self._league())
-        payload = httpx.get(url, timeout=15.0).json()
-        return self.select_game(parse_games(payload), datetime.now())
+    # fetch() and poll() are inherited from SportHighScoresJob; both route through
+    # _league() (overridden above), so they use the low-score league's scoreboard.
 
     def bind(self, data: Game | None) -> dict[str, Any]:
         env: dict[str, Any] = {"league": self._league().split("/")[-1].upper()}

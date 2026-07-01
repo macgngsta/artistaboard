@@ -28,7 +28,7 @@ from .. import codes
 from ..render import leader_color
 from ..rotation import RotationState, select
 from ..scene import Scene
-from .base import Job, JobOptions
+from .base import Job, JobOptions, jsonable
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
 FETCH_WINDOW_DAYS = 14  # how far ahead to look for the next upcoming match
@@ -214,13 +214,19 @@ class WorldCupJob(Job):
         return chosen
 
     # -- job hooks -------------------------------------------------------------
-    def fetch(self) -> Match | None:
+    def _scoreboard_events(self) -> list[dict]:
         now = datetime.now()
         start = (now - timedelta(days=1)).strftime("%Y%m%d")
         end = (now + timedelta(days=FETCH_WINDOW_DAYS)).strftime("%Y%m%d")
         resp = httpx.get(SCOREBOARD_URL, params={"dates": f"{start}-{end}", "limit": 200}, timeout=15.0)
-        events = resp.json().get("events", [])
-        return self.select_match(parse_espn(events), now)
+        return resp.json().get("events", [])
+
+    def fetch(self) -> Match | None:
+        return self.select_match(parse_espn(self._scoreboard_events()), datetime.now())
+
+    def poll(self) -> dict[str, Any]:
+        # Every match in the window; the group filter / live selection is applied at render.
+        return {"matches": jsonable(parse_espn(self._scoreboard_events())), "polled_at": datetime.now().isoformat()}
 
     def bind(self, data: Match | None) -> dict[str, Any]:
         if data is None:

@@ -28,6 +28,10 @@ class ClockJob(Job):
     def fetch(self) -> datetime:
         return datetime.now()
 
+    def poll(self) -> dict[str, Any]:
+        # The clock's "full data" is just the moment; render formats it (tz/label).
+        return {"iso": datetime.now().isoformat()}
+
     def bind(self, data: datetime) -> dict[str, Any]:
         hhmm = data.strftime("%H:%M")
         return {"time": hhmm, "tz": self.settings.clock_tz_label[:2], "time_color": self.settings.clock_color}
