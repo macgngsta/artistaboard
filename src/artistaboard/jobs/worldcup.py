@@ -19,15 +19,16 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import cached_property
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
+from pydantic import Field
 
 from .. import codes
 from ..render import leader_color
 from ..rotation import RotationState, select
 from ..scene import Scene
-from .base import Job
+from .base import Job, JobOptions
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
 FETCH_WINDOW_DAYS = 14  # how far ahead to look for the next upcoming match
@@ -153,10 +154,22 @@ def stage_lines(m: Match) -> tuple[str, str]:
     return "STAGE 2", _STAGE_LINE3.get(m.stage, m.stage.upper())
 
 
+class WorldCupOptions(JobOptions):
+    group: str | None = None  # restrict to one group letter (e.g. "C")
+    rotate_seconds: int | None = Field(default=None, gt=0)  # cadence for rotating live matches
+    live_only: bool | None = None  # pin to in-play matches; show "NO MATCHES" when none are live
+    override_map: ClassVar[dict[str, str]] = {
+        "group": "worldcup_group",
+        "rotate_seconds": "worldcup_rotate_seconds",
+        "live_only": "worldcup_live_only",
+    }
+
+
 class WorldCupJob(Job):
     name = "world_cup"
     interval_seconds = 60
     scene_name = "worldcup"
+    Options = WorldCupOptions
 
     def __init__(self, settings) -> None:
         super().__init__(settings)

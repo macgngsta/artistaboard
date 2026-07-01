@@ -98,6 +98,10 @@ class PipelineEntry(SQLModel, table=True):
     # For scene entries: a job whose bind() envelope feeds the scene's variables
     # (auto-bound by name). None -> the scene renders static (fallbacks only).
     data_source: str | None = None
+    # Typed per-entry job options (validated against the driving job's Options schema
+    # on write), applied as Settings overrides when the entry renders. {} -> inherit
+    # the process-global defaults. The driving job is job_name, or data_source for a scene.
+    options: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class BoardRun(SQLModel, table=True):
