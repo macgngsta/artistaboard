@@ -18,6 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from ..config import Settings, get_settings
 from ..db.engine import get_engine, init_engine
 from ..db.migrate import run_migrations
+from ..db.partitions import ensure_partitions, prune_partitions
 from ..db.seed import seed_system_scenes
 from ..worker import BoardManager
 from .routers import auth, boards, jobs, pipelines, preview, scenes
@@ -33,6 +34,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         run_migrations(settings.database_url)  # upgrade to head (creates schema on a fresh DB)
         with Session(get_engine()) as session:
             seed_system_scenes(session, settings)
+            # Snapshot partitions must exist before the poller writes; prune expired ones
+            # (both no-op on SQLite). Runtime creation covers month rollover past migration.
+            ensure_partitions(session)
+            prune_partitions(session)
         await manager.reconcile()  # resume any board that was running
         yield
         await manager.shutdown()
