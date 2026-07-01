@@ -112,7 +112,7 @@ export function GridEditor({ readOnly }: { readOnly: boolean }) {
                 }}
                 className={cn(
                   "flex aspect-[3/4] items-center justify-center rounded-[2px] font-mono text-[10px] font-semibold",
-                  isRegion ? "text-black" : "bg-neutral-900 text-neutral-700",
+                  isRegion ? "text-black" : "bg-[#141414] text-neutral-700",
                   readOnly ? "cursor-default" : "cursor-pointer",
                 )}
                 style={isRegion ? { backgroundColor: regionColor(ch) } : undefined}

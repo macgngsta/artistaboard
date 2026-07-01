@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutGrid, ListOrdered, MonitorSpeaker, Briefcase, LogOut } from "lucide-react";
+import { LayoutGrid, ListOrdered, MonitorSpeaker, Briefcase, LogOut, Sun, Moon } from "lucide-react";
 import { useSession, useLogout } from "@/features/auth/api";
 import { Button } from "@/components/ui/primitives";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/cn";
 
 const NAV = [
@@ -15,6 +16,7 @@ export function AppLayout() {
   const { data: user } = useSession();
   const logout = useLogout();
   const navigate = useNavigate();
+  const { theme, toggle } = useTheme();
 
   return (
     <div className="flex min-h-screen">
@@ -45,6 +47,15 @@ export function AppLayout() {
           <div className="mb-2 truncate px-1 text-xs text-neutral-500">
             {user?.display_name || user?.email}
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            onClick={toggle}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? "Light mode" : "Dark mode"}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
