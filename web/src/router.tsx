@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toast";
 import { ScenesPage } from "@/features/scenes/ScenesPage";
 import { SceneDesignerPage } from "@/features/scenes/SceneDesignerPage";
 import { BoardsPage } from "@/features/boards/BoardsPage";
+import { JobsPage } from "@/features/jobs/JobsPage";
 import { PipelinesPage } from "@/features/pipelines/PipelinesPage";
 import { PipelineEditorPage } from "@/features/pipelines/PipelineEditorPage";
 
@@ -36,6 +37,7 @@ export const router = createHashRouter([
               { path: "scenes", element: <ScenesPage /> },
               { path: "scenes/:sceneId", element: <SceneDesignerPage /> },
               { path: "boards", element: <BoardsPage /> },
+              { path: "jobs", element: <JobsPage /> },
               { path: "pipelines", element: <PipelinesPage /> },
               { path: "pipelines/:pipelineId", element: <PipelineEditorPage /> },
             ],
