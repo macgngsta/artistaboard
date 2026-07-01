@@ -29,6 +29,7 @@ from ..render import leader_color
 from ..rotation import rotate_index
 from ..scene import Scene
 from .base import Job, JobOptions, jsonable
+from .espn import event_sides, parse_iso, to_int
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
 FETCH_WINDOW_DAYS = 14  # how far ahead to look for the next upcoming match
@@ -78,26 +79,14 @@ class Match:
 def _parse_kickoff(iso: str) -> datetime | None:
     """ESPN gives UTC ISO timestamps (``2026-06-29T17:00Z``); selection compares
     against ``datetime.now()`` (naive local), so convert UTC -> local naive."""
-    try:
-        dt = datetime.fromisoformat(iso.strip().replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
-    return dt.astimezone().replace(tzinfo=None)
-
-
-def _int(value: Any) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 0
+    dt = parse_iso(iso)
+    return dt.astimezone().replace(tzinfo=None) if dt else None
 
 
 def parse_espn(events: list[dict]) -> list[Match]:
     out: list[Match] = []
     for e in events:
-        comp = (e.get("competitions") or [{}])[0]
-        sides = {c.get("homeAway"): c for c in comp.get("competitors", [])}
-        home, away = sides.get("home", {}), sides.get("away", {})
+        home, away = event_sides(e)
         home_team, away_team = home.get("team", {}), away.get("team", {})
         status = (e.get("status") or {}).get("type", {})
         state = status.get("state", "")  # pre / in / post
@@ -116,8 +105,8 @@ def parse_espn(events: list[dict]) -> list[Match]:
                 away=away_team.get("displayName", ""),
                 home_code=home_team.get("abbreviation", ""),
                 away_code=away_team.get("abbreviation", ""),
-                home_score=_int(home.get("score")),
-                away_score=_int(away.get("score")),
+                home_score=to_int(home.get("score")),
+                away_score=to_int(away.get("score")),
                 group="",  # the scoreboard feed doesn't carry the group letter
                 stage=_STAGE_FROM_SLUG.get(slug, "group"),
                 matchday="",
