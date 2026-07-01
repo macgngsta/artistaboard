@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from ..db.models import Board, Scene
 
@@ -113,6 +113,8 @@ class PipelineEntryIn(BaseModel):
     job_name: str | None = None
     scene_id: str | None = None
     data_source: str | None = None  # scene entries: a job feeding the scene's data
+    # Typed job options, validated against the driving job's schema (see /jobs).
+    options: dict[str, Any] = Field(default_factory=dict)
     duration_seconds: int = Field(default=60, gt=0)
     refresh_seconds: int | None = None
 
@@ -124,8 +126,20 @@ class PipelineEntryOut(BaseModel):
     job_name: str | None
     scene_id: str | None
     data_source: str | None
+    options: dict[str, Any]
     duration_seconds: int
     refresh_seconds: int | None
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _default_options(cls, v: Any) -> dict[str, Any]:
+        return v or {}  # legacy rows have NULL options
+
+
+class JobOut(BaseModel):
+    name: str
+    # JSON Schema of the job's options model — drives the options form in the UI.
+    options_schema: dict[str, Any]
 
 
 class PipelineIn(BaseModel):

@@ -81,6 +81,77 @@ def test_nonpositive_duration_is_422(auth_client):
     assert r.status_code == 422  # schema gt=0
 
 
+def test_job_entry_accepts_typed_options(auth_client):
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "p",
+            "entries": [
+                {"source_type": "job", "job_name": "world_cup", "options": {"group": "C"}, "duration_seconds": 30}
+            ],
+        },
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["entries"][0]["options"] == {"group": "C"}
+
+
+def test_unknown_option_key_is_422(auth_client):
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "p",
+            "entries": [
+                {"source_type": "job", "job_name": "world_cup", "options": {"bogus": 1}, "duration_seconds": 30}
+            ],
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_options_without_a_driving_job_is_422(auth_client):
+    clock = next(s for s in auth_client.get("/scenes").json() if s["name"] == "clock")
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "p",
+            "entries": [
+                {"source_type": "scene", "scene_id": clock["id"], "options": {"tz_label": "ET"}, "duration_seconds": 30}
+            ],
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_scene_entry_options_validate_against_data_source(auth_client):
+    clock = next(s for s in auth_client.get("/scenes").json() if s["name"] == "clock")
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "p",
+            "entries": [
+                {
+                    "source_type": "scene",
+                    "scene_id": clock["id"],
+                    "data_source": "clock",
+                    "options": {"tz_label": "ET"},
+                    "duration_seconds": 30,
+                }
+            ],
+        },
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["entries"][0]["options"] == {"tz_label": "ET"}
+
+
+def test_entry_options_default_to_empty(auth_client):
+    r = auth_client.post(
+        "/pipelines",
+        json={"name": "p", "entries": [{"source_type": "job", "job_name": "clock", "duration_seconds": 30}]},
+    )
+    assert r.status_code == 201
+    assert r.json()["entries"][0]["options"] == {}
+
+
 def test_update_replaces_entries(auth_client):
     pid = auth_client.post(
         "/pipelines",

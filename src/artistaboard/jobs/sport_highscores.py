@@ -13,12 +13,13 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
+from pydantic import Field
 
 from ..rotation import RotationState, select
-from .base import Job
+from .base import Job, JobOptions
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/{league}/scoreboard"
 NAME_WIDTH = 9  # region F/I width
@@ -101,10 +102,17 @@ def display_name(team: Team) -> str:
     return name if len(name) <= NAME_WIDTH else team.abbr.upper()
 
 
+class SportHighScoresOptions(JobOptions):
+    league: str | None = None  # ESPN sport/league path (e.g. "basketball/nba")
+    rotate_seconds: int | None = Field(default=None, gt=0)
+    override_map: ClassVar[dict[str, str]] = {"league": "sport_league", "rotate_seconds": "sport_rotate_seconds"}
+
+
 class SportHighScoresJob(Job):
     name = "sport_highscores"
     interval_seconds = 60
     scene_name = "sport_highscores"
+    Options = SportHighScoresOptions
 
     def __init__(self, settings) -> None:
         super().__init__(settings)

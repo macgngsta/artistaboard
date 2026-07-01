@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 
 from .. import codes
-from .base import Job
+from .base import ColorOption, Job, JobOptions
 
 SIRI_URL = "http://api.511.org/transit/StopMonitoring"
 MAX_ARRIVALS = 3
@@ -72,9 +72,21 @@ def parse_stop_monitoring(payload: dict, now: datetime, line: str | None = None)
     return MuniArrivals(minutes=[m for m, _, _ in entries], destination=entries[0][1], direction=entries[0][2])
 
 
+class MuniOptions(JobOptions):
+    stop_code: str | None = None  # 511 stop code to monitor
+    line: str | None = None  # route letter (J/K/L/M/N/T); picks the badge color
+    color: ColorOption = None  # override the line's own badge color
+    override_map: ClassVar[dict[str, str]] = {
+        "stop_code": "muni_stop_code",
+        "line": "muni_line",
+        "color": "muni_color",
+    }
+
+
 class MuniJob(Job):
     name = "muni"
     interval_seconds = 30
+    Options = MuniOptions
     # The "transit" scene is operator-agnostic (badge + countdown + arrivals +
     # operator/direction/destination), so a future NYC-MTA job can reuse it by
     # binding the same envelope — the way the sport jobs share a layout shape.

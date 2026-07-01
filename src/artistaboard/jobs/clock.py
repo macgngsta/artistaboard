@@ -8,15 +8,22 @@ configured clock colour).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
-from .base import Job
+from .base import ColorOption, Job, JobOptions
+
+
+class ClockOptions(JobOptions):
+    tz_label: str | None = None  # 2-char corner label (e.g. PT/ET)
+    color: ColorOption = None
+    override_map: ClassVar[dict[str, str]] = {"tz_label": "clock_tz_label", "color": "clock_color"}
 
 
 class ClockJob(Job):
     name = "clock"
     interval_seconds = 60
     scene_name = "clock"
+    Options = ClockOptions
 
     def fetch(self) -> datetime:
         return datetime.now()

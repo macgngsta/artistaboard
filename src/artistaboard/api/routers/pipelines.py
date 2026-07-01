@@ -6,26 +6,39 @@ job entries must name a real job; scene entries must reference a scene the user 
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
+from pydantic import ValidationError
 from sqlmodel import select
 
 from ...db import Pipeline, PipelineEntry, Scene
-from ...registry import JOB_TYPES
+from ...registry import JOB_TYPES, options_overrides
 from ..deps import CurrentUser, SessionDep
 from ..schemas import PipelineEntryIn, PipelineEntryOut, PipelineIn, PipelineOut
 
 router = APIRouter(prefix="/pipelines", tags=["pipelines"])
 
 
+def _validate_options(job: str, options: dict) -> None:
+    try:
+        options_overrides(job, options)  # validates against the job's Options schema
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid options for {job!r}: {exc}") from exc
+
+
 def _validate_entry(entry: PipelineEntryIn, user_id: str, session: SessionDep) -> None:
     if entry.source_type == "job":
         if entry.job_name not in JOB_TYPES:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown job {entry.job_name!r}")
+        _validate_options(entry.job_name, entry.options)
     elif entry.source_type == "scene":
         scene = session.get(Scene, entry.scene_id) if entry.scene_id else None
         if scene is None or (not scene.is_system and scene.owner_id != user_id):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "scene entry references an unknown scene")
         if entry.data_source is not None and entry.data_source not in JOB_TYPES:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown data_source {entry.data_source!r}")
+        if entry.options and entry.data_source is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "options require a data_source job to apply to")
+        if entry.data_source is not None:
+            _validate_options(entry.data_source, entry.options)
     else:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"bad source_type {entry.source_type!r}")
 
@@ -55,6 +68,7 @@ def _replace_entries(session: SessionDep, pipeline_id: str, entries: list[Pipeli
                 job_name=entry.job_name,
                 scene_id=entry.scene_id,
                 data_source=entry.data_source,
+                options=entry.options,
                 duration_seconds=entry.duration_seconds,
                 refresh_seconds=entry.refresh_seconds,
             )

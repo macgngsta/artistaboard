@@ -3,12 +3,47 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Annotated, Any, ClassVar
 
+from pydantic import BaseModel, BeforeValidator, ConfigDict
+
+from .. import codes
 from ..client import VestaboardClient
 from ..config import Settings
 from ..render import render_scene
 from ..scene import Scene
+
+
+def _resolve_color_option(value: object) -> int | None:
+    """Normalise a color option (a code like ``69`` or a name like ``"violet"``) to a
+    code; ``None``/``""`` means 'inherit the Settings default'. Mirrors the resolution
+    Settings does, needed here because ``build_job`` overrides skip re-validation."""
+    if value is None or value == "":
+        return None
+    return codes.resolve_color(value)  # type: ignore[arg-type]
+
+
+# A color-valued option field: accepts a code or a name, inherits the default when unset.
+ColorOption = Annotated[int | None, BeforeValidator(_resolve_color_option)]
+
+
+class JobOptions(BaseModel):
+    """Per-entry, user-supplied options for a job.
+
+    Subclasses declare typed, user-facing fields (``group``, ``line`` …). The base
+    turns the *explicitly set* ones into :class:`Settings` overrides for
+    :func:`build_job` via ``override_map`` (option field -> Settings field). A field
+    left ``None`` is omitted, so an unset option falls back to the process-global
+    ``Settings`` — the entry inherits the deployment default rather than clobbering
+    it. ``extra="forbid"`` rejects unknown keys so a typo fails loudly on write.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    override_map: ClassVar[dict[str, str]] = {}
+
+    def to_overrides(self) -> dict[str, Any]:
+        data = self.model_dump(exclude_none=True)
+        return {self.override_map.get(k, k): v for k, v in data.items()}
 
 
 class Job(ABC):
@@ -26,6 +61,8 @@ class Job(ABC):
     name: str
     interval_seconds: int
     scene_name: str | None = None
+    # The typed per-entry options this job accepts (empty by default: no knobs).
+    Options: ClassVar[type[JobOptions]] = JobOptions
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings

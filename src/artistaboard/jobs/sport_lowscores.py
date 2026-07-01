@@ -11,12 +11,14 @@ data and adds the winner's blue accent pixel via a ``post_render`` hook.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
+from pydantic import Field
 
 from .. import codes
 from ..scene import Scene
+from .base import JobOptions
 from .sport_highscores import (
     SCOREBOARD_URL,
     Game,
@@ -27,9 +29,19 @@ from .sport_highscores import (
 )
 
 
+class SportLowScoresOptions(JobOptions):
+    league: str | None = None  # ESPN sport/league path (e.g. "baseball/mlb")
+    rotate_seconds: int | None = Field(default=None, gt=0)
+    override_map: ClassVar[dict[str, str]] = {
+        "league": "sport_lowscore_league",
+        "rotate_seconds": "sport_rotate_seconds",
+    }
+
+
 class SportLowScoresJob(SportHighScoresJob):
     name = "sport_lowscores"
     scene_name = "sport_lowscores"
+    Options = SportLowScoresOptions
 
     def _league(self) -> str:
         return self.settings.sport_lowscore_league

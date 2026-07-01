@@ -11,8 +11,9 @@ build path or the stored-scene render path.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from sqlmodel import Session, select
 
@@ -20,7 +21,7 @@ from .config import Settings
 from .db.models import Pipeline as PipelineRow
 from .db.models import PipelineEntry as EntryRow
 from .db.models import Scene as SceneRow
-from .registry import build_job
+from .registry import build_job, options_overrides
 from .render import render_scene
 from .rotation import RotationState
 from .scene import Scene
@@ -35,6 +36,7 @@ class RuntimeEntry:
     job_name: str | None
     scene_id: str | None
     data_source: str | None = None
+    options: dict[str, Any] = field(default_factory=dict)
 
 
 class Pipeline:
@@ -94,6 +96,7 @@ def load_pipeline(session: Session, pipeline_id: str, rotation_state: dict | Non
             job_name=r.job_name,
             scene_id=r.scene_id,
             data_source=r.data_source,
+            options=r.options or {},
         )
         for r in rows
     ]
@@ -109,7 +112,8 @@ def render_entry(entry: RuntimeEntry, settings: Settings, session: Session) -> S
     if entry.source_type == "job":
         if not entry.job_name:
             raise ValueError("job entry missing job_name")
-        return build_job(entry.job_name, settings).build()
+        overrides = options_overrides(entry.job_name, entry.options)
+        return build_job(entry.job_name, settings, **overrides).build()
     if entry.source_type == "scene":
         row = session.get(SceneRow, entry.scene_id)
         if row is None:
@@ -117,7 +121,7 @@ def render_entry(entry: RuntimeEntry, settings: Settings, session: Session) -> S
         scene = Scene.from_dict(row.document)
         envelope: dict = {}
         if entry.data_source:
-            job = build_job(entry.data_source, settings)
+            job = build_job(entry.data_source, settings, **options_overrides(entry.data_source, entry.options))
             envelope = job.bind(job.fetch()) or {}
         render_scene(scene, envelope, settings)
         return scene
