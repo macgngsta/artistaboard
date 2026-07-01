@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { RenderRegion, Scene, SceneDocument } from "@/api/types";
-import { blankRow, GRID_COLS, GRID_ROWS } from "./defaults";
+import { blankRow, FILLER, GRID_COLS, GRID_ROWS } from "./defaults";
+
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 // Local editor state for the scene designer (Zustand per the plan). Holds the
 // working document + sample_data that feed the debounced /preview call; the
@@ -14,11 +16,16 @@ interface SceneEditorState {
   document: SceneDocument;
   sampleData: Record<string, unknown>;
   selectedRegion: string | null;
+  eraseMode: boolean;
   dirty: boolean;
 
   load: (scene: Scene) => void;
   setName: (name: string) => void;
   setRow: (index: number, value: string) => void;
+  setCell: (row: number, col: number) => void;
+  setEraseMode: (erase: boolean) => void;
+  addRegion: () => void;
+  removeRegion: (region: string) => void;
   setFont: (font: string) => void;
   selectRegion: (region: string | null) => void;
   setRegionField: (region: string, field: keyof RenderRegion, value: unknown) => void;
@@ -50,6 +57,7 @@ export const useSceneEditor = create<SceneEditorState>((set) => ({
   document: { grid: Array.from({ length: GRID_ROWS }, blankRow), render: {} },
   sampleData: {},
   selectedRegion: null,
+  eraseMode: false,
   dirty: false,
 
   load: (scene) =>
@@ -62,6 +70,7 @@ export const useSceneEditor = create<SceneEditorState>((set) => ({
       document: asDocument(scene.document),
       sampleData: {},
       selectedRegion: null,
+      eraseMode: false,
       dirty: false,
     }),
 
@@ -74,9 +83,61 @@ export const useSceneEditor = create<SceneEditorState>((set) => ({
       return { document: { ...s.document, grid }, dirty: true };
     }),
 
+  // Paint one cell with the current brush: the selected region letter, or a blank
+  // filler when erasing. This is how the graphical grid mutates document.grid.
+  setCell: (row, col) =>
+    set((s) => {
+      if (s.isSystem) return s;
+      const paint = s.eraseMode ? FILLER : s.selectedRegion;
+      if (!paint) return s; // no brush selected and not erasing
+      const grid = [...s.document.grid];
+      const chars = grid[row].split("");
+      if (chars[col] === paint) return s;
+      chars[col] = paint;
+      grid[row] = chars.join("");
+      return { document: { ...s.document, grid }, dirty: true };
+    }),
+
+  setEraseMode: (eraseMode) => set({ eraseMode }),
+
+  // Create the next free region letter (A–Z) and select it as the brush. It has no
+  // cells yet — the user paints them — but it shows in the palette immediately
+  // because it now exists in render config.
+  addRegion: () =>
+    set((s) => {
+      const used = new Set(regionList(s.document));
+      const next = ALPHABET.find((c) => !used.has(c));
+      if (!next) return s; // all 26 letters in use
+      const render = { ...(s.document.render ?? {}), [next]: {} };
+      return {
+        document: { ...s.document, render },
+        selectedRegion: next,
+        eraseMode: false,
+        dirty: true,
+      };
+    }),
+
+  // Remove a region entirely: clear its painted cells and drop its render config.
+  removeRegion: (region) =>
+    set((s) => {
+      const grid = s.document.grid.map((row) =>
+        row
+          .split("")
+          .map((c) => (c === region ? FILLER : c))
+          .join(""),
+      );
+      const render = { ...(s.document.render ?? {}) };
+      delete render[region];
+      return {
+        document: { ...s.document, grid, render },
+        selectedRegion: s.selectedRegion === region ? null : s.selectedRegion,
+        dirty: true,
+      };
+    }),
+
   setFont: (font) => set((s) => ({ document: { ...s.document, font }, dirty: true })),
 
-  selectRegion: (selectedRegion) => set({ selectedRegion }),
+  selectRegion: (selectedRegion) => set({ selectedRegion, eraseMode: false }),
 
   setRegionField: (region, field, value) =>
     set((s) => {
@@ -105,4 +166,21 @@ export function regionsInGrid(grid: string[]): string[] {
     }
   }
   return [...seen].sort();
+}
+
+// All regions that "exist": painted in the grid OR configured in render (so a
+// freshly added, not-yet-painted region still shows in the palette).
+export function regionList(document: SceneDocument): string[] {
+  const seen = new Set<string>(regionsInGrid(document.grid));
+  for (const key of Object.keys(document.render ?? {})) {
+    if (key >= "A" && key <= "Z") seen.add(key);
+  }
+  return [...seen].sort();
+}
+
+// Stable, visually distinct fill color per region letter for the painter overlay.
+const REGION_HUES = [265, 190, 145, 25, 330, 90, 210, 45, 300, 165, 0, 240];
+export function regionColor(region: string): string {
+  const idx = region.charCodeAt(0) - 65;
+  return `hsl(${REGION_HUES[idx % REGION_HUES.length]} 70% 55%)`;
 }

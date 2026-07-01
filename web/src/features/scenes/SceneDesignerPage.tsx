@@ -11,7 +11,7 @@ import type { RequiredVariable, SceneDocument, SceneIn } from "@/api/types";
 import { useDebounced } from "@/lib/useDebounced";
 import { useScene, useUpdateScene, useCreateScene, previewScene } from "./api";
 import { useSceneEditor } from "./store";
-import { collectVariables } from "./variables";
+import { collectVariables, seedSampleData } from "./variables";
 import { GridEditor } from "./GridEditor";
 import { RegionEditor } from "./RegionEditor";
 import { SampleDataForm } from "./SampleDataForm";
@@ -30,9 +30,15 @@ export function SceneDesignerPage() {
     if (scene && scene.id !== ed.loadedId) ed.load(scene);
   }, [scene, ed]);
 
+  // Variables + the sample data actually rendered. Seeding fills unset color/number
+  // vars with defaults so the live preview renders instead of erroring on empties.
+  const serverVars = (scene?.required_variables ?? []) as unknown as RequiredVariable[];
+  const variables = collectVariables(ed.document, serverVars);
+  const effectiveSample = seedSampleData(variables, ed.sampleData);
+
   // Debounced live preview — the server render is the source of truth.
   const debouncedDoc = useDebounced(ed.document, 300);
-  const debouncedSample = useDebounced(ed.sampleData, 300);
+  const debouncedSample = useDebounced(effectiveSample, 300);
   const preview = useQuery({
     queryKey: ["preview", debouncedDoc, debouncedSample],
     enabled: ed.loadedId === sceneId,
@@ -56,8 +62,6 @@ export function SceneDesignerPage() {
   }
 
   const readOnly = ed.isSystem;
-  const serverVars = (scene?.required_variables ?? []) as unknown as RequiredVariable[];
-  const variables = collectVariables(ed.document, serverVars);
   const previewError = preview.error instanceof ApiError ? preview.error.message : null;
 
   async function save() {
