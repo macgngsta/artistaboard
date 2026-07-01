@@ -43,6 +43,20 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./artistaboard.db"
     session_secret: str = "dev-insecure-change-me"
     allow_signup: bool = True
+    # Browser origins allowed to call the API with credentials. Defaults cover the
+    # Vite dev server; production serves the SPA same-origin so no CORS is needed.
+    # Accepts a JSON list or a comma-separated string via CORS_ORIGINS.
+    cors_origins: list[str] = Field(
+        default=["http://localhost:5173", "http://127.0.0.1:5173"],
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, v: object) -> object:
+        if isinstance(v, str) and not v.strip().startswith("["):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
+
     # Encrypts board Read/Write keys at rest (Fernet). Falls back to session_secret
     # when unset — fine for local dev, set a dedicated key in any real deployment.
     app_encryption_key: str = ""
@@ -97,6 +111,11 @@ class Settings(BaseSettings):
     spotify_client_secret: str = ""
     spotify_refresh_token: str = ""
     spotify_redirect_uri: str = "http://127.0.0.1:8888/callback"
+
+    @property
+    def web_dist_dir(self) -> Path:
+        """Built SPA (web/dist). Served same-origin when present."""
+        return self.data_dir / "web" / "dist"
 
     @property
     def scenes_dir(self) -> Path:

@@ -10,6 +10,8 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -44,6 +46,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         same_site="lax",
         https_only=False,
     )
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,  # required to send the session cookie cross-origin
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     app.include_router(auth.router)
     app.include_router(scenes.router)
     app.include_router(preview.router)
@@ -54,5 +64,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    # Serve the built SPA same-origin when present. Mounted last so it never
+    # shadows the API routers, /health, or /openapi.json above it. The frontend
+    # uses a hash router, so only "/" and static assets are ever requested here.
+    if settings.web_dist_dir.is_dir():
+        app.mount("/", StaticFiles(directory=settings.web_dist_dir, html=True), name="spa")
 
     return app
