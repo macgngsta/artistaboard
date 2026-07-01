@@ -1,8 +1,9 @@
-import { useSceneEditor } from "./store";
+import { useSceneEditor, regionList } from "./store";
 import type { RenderRegion } from "@/api/types";
 import { Field, Input } from "@/components/ui/primitives";
 import { Select } from "@/components/ui/select";
 import { ColorPicker } from "./ColorPicker";
+import { RegionSelect } from "./RegionSelect";
 import { cn } from "@/lib/cn";
 
 // Region-type presets map the four backend render modes to plain-language choices,
@@ -30,11 +31,21 @@ export function RegionEditor({ readOnly }: { readOnly: boolean }) {
     s.selectedRegion ? (s.document.render?.[s.selectedRegion] ?? {}) : null,
   );
   const setField = useSceneEditor((s) => s.setRegionField);
+  const selectRegion = useSceneEditor((s) => s.selectRegion);
+  // Select the stable document reference, then derive the list in the body — a
+  // selector returning a fresh array each call loops zustand's useSyncExternalStore.
+  const document = useSceneEditor((s) => s.document);
+  const regions = regionList(document);
 
   if (!selected || !region) {
     return (
       <p className="text-sm text-neutral-500">
-        Select a region (a letter in the grid) to choose what it shows.
+        Select a region — pick one below or click a letter on the grid.
+        {regions.length > 0 && (
+          <span className="mt-3 block">
+            <RegionSelect value="" regions={regions} onChange={selectRegion} />
+          </span>
+        )}
       </p>
     );
   }
@@ -48,9 +59,7 @@ export function RegionEditor({ readOnly }: { readOnly: boolean }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-sm font-medium text-neutral-200">
-        Region <span className="font-mono text-violet-300">{selected}</span>
-      </div>
+      <RegionSelect value={selected} regions={regions} onChange={selectRegion} />
 
       {/* What goes in this region */}
       <Field label="What goes here?">
