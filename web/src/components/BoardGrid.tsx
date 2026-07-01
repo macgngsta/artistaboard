@@ -30,7 +30,8 @@ function Tile({ code }: { code: number }) {
   const chip = isColorCode(code) ? colorForCode(code) : null;
   return (
     <div
-      className="relative flex aspect-[3/4] items-center justify-center rounded-[3px] bg-neutral-900 font-mono text-[clamp(8px,1.6vw,20px)] font-semibold uppercase leading-none text-neutral-100 select-none"
+      // Fixed dark colors: the board depicts a physical black Vestaboard in both themes.
+      className="relative flex aspect-[3/4] items-center justify-center rounded-[3px] bg-[#141414] font-mono text-[clamp(8px,1.6vw,20px)] font-semibold uppercase leading-none text-[#e5e5e7] select-none"
       style={chip ? { backgroundColor: chip } : undefined}
       // A thin hinge line down the middle evokes the physical split-flap tile.
     >
