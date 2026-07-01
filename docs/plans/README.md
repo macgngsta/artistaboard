@@ -10,6 +10,8 @@ generic rotation, and composition). Default/integration branch is **`main`**.
 ## active
 - [`web-frontend.md`](active/web-frontend.md) — web UI; core app + graphical designer shipped,
   jobs-management / display-options / nested-pipeline UI remain.
+- [`jobs-management-api.md`](active/jobs-management-api.md) — data-layer HTTP surface (freshness +
+  manual poll) that unblocks the Jobs management UI. Backend; thin wrappers over existing functions.
 - [`phase-3-rotation.md`](active/phase-3-rotation.md) — generic rotation primitive (single-vs-rotate,
   highlight-live) over the full snapshot. Next.
 - [`phase-4-nested-pipelines.md`](active/phase-4-nested-pipelines.md) — nested pipelines to compose

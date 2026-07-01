@@ -10,11 +10,11 @@ rows in the coordination tracker (notably `review-web-ci-tests`, `review-422-err
 
 ## Remaining tasks
 
-- `jobs-mgmt` — **Jobs management UI.** The Jobs page (#43) is read-only. Now that the data layer
-  is shipped (phase 2), grow it into management: data freshness (latest snapshot age per source),
-  a manual "poll now", and per-source status. **Blocked on** the data layer exposing read/trigger
-  endpoints — none today (phase 2 was storage + poller + render, no HTTP surface). Audit
-  `db/snapshots.py` + routers, then design.
+- `jobs-mgmt` — **Jobs management UI.** The Jobs page (#43) is read-only. Grow it into management:
+  data freshness (latest snapshot age per source), a manual "poll now", and per-source status.
+  **Blocked on** the data-layer HTTP surface — spec'd in
+  [`jobs-management-api.md`](jobs-management-api.md) (`GET /data/sources`, `POST /data/poll`); build
+  the UI once those endpoints land and the client is regenerated.
 - `display-options-ui` — When backend **phase 3** (generic rotation primitive) lands, surface its
   display knobs (single-vs-rotate, highlight-live, which group/lines) in the per-entry options
   form (extends #36). Pairs with `docs/plans/active/phase-3-rotation.md`.
