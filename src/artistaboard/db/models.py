@@ -13,7 +13,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, Index
 from sqlmodel import Field, SQLModel
 
 
@@ -116,3 +116,27 @@ class BoardRun(SQLModel, table=True):
     last_sent: list[list[int]] | None = Field(default=None, sa_column=Column(JSON))
     current_entry_id: str | None = None
     updated_at: datetime = Field(default_factory=_now)
+
+
+class DataSnapshot(SQLModel, table=True):
+    """A reading from a data source, persisted by the poller so the paint path reads
+    the DB instead of calling an API. Append-only time series: one row per poll.
+
+    ``payload`` holds the source's full normalized data (not a single scene's
+    envelope), so a board can re-filter or switch what it shows without re-fetching.
+    ``source_key`` is the fetch-defining identity (e.g. a Muni stop / sport league);
+    display-only options (a group filter, which lines) are applied at render, not here.
+
+    On Postgres this table is RANGE-partitioned by ``fetched_at`` (monthly, with
+    DROP-partition retention — see db.partitions); on SQLite it's a plain table. The
+    ORM read/write path is identical on both.
+    """
+
+    __tablename__ = "data_snapshots"
+    __table_args__ = (Index("ix_data_snapshots_latest", "source", "source_key", "fetched_at"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    source: str  # job/source name, e.g. "world_cup"
+    source_key: str = ""  # fetch-defining options identity ("" = the source's default)
+    payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    fetched_at: datetime = Field(default_factory=_now)
