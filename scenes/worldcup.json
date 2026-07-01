@@ -9,9 +9,9 @@
   ],
   "font": "bytesized3x4",
   "render": {
-    "A": {"bind": "home.score", "as": "glyphs", "color": {"rule": "leader", "team": "home"}},
+    "A": {"bind": "home.score", "as": "glyphs", "color": {"rule": "leader", "team": "home", "scheme": "red_blue"}},
     "J": {"bind": "sep", "as": "glyphs", "color": "white"},
-    "B": {"bind": "away.score", "as": "glyphs", "color": {"rule": "leader", "team": "away"}},
+    "B": {"bind": "away.score", "as": "glyphs", "color": {"rule": "leader", "team": "away", "scheme": "red_blue"}},
     "C": {"bind": "title", "as": "text", "align": "right"},
     "D": {"bind": "stage2", "as": "text", "align": "right"},
     "E": {"bind": "stage3", "as": "text", "align": "right"},

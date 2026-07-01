@@ -76,9 +76,12 @@ class Settings(BaseSettings):
     muni_line: str = "L"
 
     # World Cup job: only show a specific group (e.g. "C") when set; rotate among
-    # live matches every N seconds (or immediately on a score change).
+    # live matches every N seconds (or immediately on a score change). When
+    # live_only is set, never fall back to an upcoming match — show nothing
+    # ("NO MATCHES") unless a game is currently in play.
     worldcup_group: str = ""
     worldcup_rotate_seconds: int = 300
+    worldcup_live_only: bool = False
 
     # Sport high-scores job: ESPN sport/league path + rotation cadence.
     sport_league: str = "basketball/nba"
