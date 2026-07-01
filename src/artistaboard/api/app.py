@@ -21,7 +21,7 @@ from ..db.migrate import run_migrations
 from ..db.partitions import ensure_partitions, prune_partitions
 from ..db.seed import seed_system_scenes
 from ..worker import BoardManager
-from .routers import auth, boards, jobs, pipelines, preview, scenes
+from .routers import auth, boards, data, jobs, pipelines, preview, scenes
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -65,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(boards.router)
     app.include_router(pipelines.router)
     app.include_router(jobs.router)
+    app.include_router(data.router)
 
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:

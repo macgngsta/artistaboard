@@ -161,3 +161,18 @@ class BoardRunOut(BaseModel):
     state: str
     current_entry_id: str | None
     updated_at: datetime
+
+
+class DataSourceOut(BaseModel):
+    """One active snapshot series (source + fetch-defining key) with its freshness."""
+
+    source: str
+    source_key: str
+    last_fetched_at: datetime | None
+    age_seconds: float | None
+    has_data: bool
+
+
+class PollResultOut(BaseModel):
+    polled: list[str]
+    failed: list[tuple[str, str]]
