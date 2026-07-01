@@ -35,11 +35,17 @@ class SourceRef:
     options: dict
 
 
-def referenced_sources(session: Session) -> list[SourceRef]:
+def referenced_sources(session: Session, *, owner_id: str | None = None) -> list[SourceRef]:
     """The distinct ``(source, source_key)`` pairs referenced by *running* boards'
     pipelines — we only poll data something is actually showing. Deduped so a source
-    used by many entries/boards is polled once per fetch-defining identity."""
-    runs = session.exec(select(BoardRun).where(BoardRun.state == "running")).all()
+    used by many entries/boards is polled once per fetch-defining identity.
+
+    ``owner_id`` scopes discovery to one user's running boards (used by the HTTP API);
+    the daemon leaves it None to poll every referenced source."""
+    q = select(BoardRun).where(BoardRun.state == "running")
+    if owner_id is not None:
+        q = q.where(BoardRun.owner_id == owner_id)
+    runs = session.exec(q).all()
     pipeline_ids = {r.pipeline_id for r in runs}
     if not pipeline_ids:
         return []
@@ -60,11 +66,12 @@ class PollResult:
     failed: list[tuple[str, str]] = field(default_factory=list)
 
 
-def run_poll_cycle(session: Session, settings: Settings) -> PollResult:
+def run_poll_cycle(session: Session, settings: Settings, *, owner_id: str | None = None) -> PollResult:
     """Poll every referenced source once, writing a snapshot each. A single source's
-    failure (a flaky API, a missing key) is isolated so the rest of the cycle runs."""
+    failure (a flaky API, a missing key) is isolated so the rest of the cycle runs.
+    ``owner_id`` scopes to one user's sources (the HTTP manual poll); None = all."""
     result = PollResult()
-    for ref in referenced_sources(session):
+    for ref in referenced_sources(session, owner_id=owner_id):
         try:
             job = build_job(ref.source, settings, **options_overrides(ref.source, ref.options))
             write_snapshot(session, ref.source, job.poll(), source_key=ref.source_key)
