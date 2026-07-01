@@ -117,43 +117,46 @@ export function SceneDesignerPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 p-6 lg:grid-cols-[320px_1fr_320px]">
-        {/* Left: grid + regions */}
-        <Card className="flex flex-col gap-4">
-          <Input
-            value={ed.name}
-            readOnly={readOnly}
-            onChange={(e) => ed.setName(e.target.value)}
-            placeholder="Scene name"
-            className="font-medium"
-          />
-          <GridEditor readOnly={readOnly} />
-        </Card>
-
-        {/* Center: live preview */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="text-xs uppercase tracking-wide text-neutral-500">Live preview</div>
-          {preview.data ? (
-            <BoardGrid characters={preview.data.characters} className="w-full max-w-2xl" />
-          ) : (
-            <div className="flex h-40 items-center justify-center">
-              <Spinner className="h-6 w-6" />
-            </div>
-          )}
-          {previewError && (
-            <div className="flex items-center gap-2 rounded-md border border-red-900 bg-red-950/50 px-3 py-2 text-sm text-red-300">
-              <AlertTriangle className="h-4 w-4 shrink-0" /> {previewError}
-            </div>
-          )}
-        </div>
-
-        {/* Right: region config + sample data */}
+      <div className="grid grid-cols-1 gap-4 p-6 lg:grid-cols-[360px_1fr]">
+        {/* Left: paint the grid, then the selected region's options right below it */}
         <div className="flex flex-col gap-4">
+          <Card className="flex flex-col gap-4">
+            <Input
+              value={ed.name}
+              readOnly={readOnly}
+              onChange={(e) => ed.setName(e.target.value)}
+              placeholder="Scene name"
+              className="font-medium"
+            />
+            <GridEditor readOnly={readOnly} />
+          </Card>
           <Card>
             <RegionEditor readOnly={readOnly} />
           </Card>
-          <Card>
-            <div className="mb-3 text-sm font-medium text-neutral-200">Sample data</div>
+        </div>
+
+        {/* Center: the live preview, with the sample data that drives it right below */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex w-full flex-col items-center gap-3">
+            <div className="text-xs uppercase tracking-wide text-neutral-500">Live preview</div>
+            {preview.data ? (
+              <BoardGrid characters={preview.data.characters} className="w-full max-w-2xl" />
+            ) : (
+              <div className="flex h-40 items-center justify-center">
+                <Spinner className="h-6 w-6" />
+              </div>
+            )}
+            {previewError && (
+              <div className="flex items-center gap-2 rounded-md border border-red-900 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+                <AlertTriangle className="h-4 w-4 shrink-0" /> {previewError}
+              </div>
+            )}
+          </div>
+          <Card className="w-full max-w-2xl">
+            <div className="mb-1 text-sm font-medium text-neutral-200">Sample data</div>
+            <p className="mb-3 text-xs text-neutral-500">
+              Test values to preview the scene — not saved. Edit any field and the board repaints.
+            </p>
             <SampleDataForm variables={variables} />
           </Card>
         </div>

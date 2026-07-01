@@ -38,6 +38,24 @@ export function collectVariables(
   });
 }
 
+// Which region letter(s) reference each variable — via its bind, or a {data:key}
+// color/fill spec — so the sample-data form can show "used by B, C".
+export function variableRegions(document: SceneDocument): Record<string, string[]> {
+  const map: Record<string, Set<string>> = {};
+  const link = (name: unknown, region: string) => {
+    if (typeof name === "string" && name) (map[name] ??= new Set()).add(region);
+  };
+  const colorData = (spec: unknown, region: string) => {
+    if (spec && typeof spec === "object" && "data" in spec) link((spec as { data: unknown }).data, region);
+  };
+  for (const [region, cfg] of Object.entries(document.render ?? {})) {
+    link(cfg.bind, region);
+    colorData(cfg.color, region);
+    colorData(cfg.fill, region);
+  }
+  return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, [...v].sort()]));
+}
+
 // Sample data actually sent to /preview: the user's values, backfilled with sane
 // defaults so the board renders instead of 422-ing on an empty required value.
 // Color/number vars need a concrete value; text/flag can stay blank (renders empty).
