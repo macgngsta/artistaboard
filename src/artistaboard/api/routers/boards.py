@@ -11,17 +11,14 @@ from sqlmodel import select
 from ...client import VestaboardClient, VestaboardError
 from ...crypto import decrypt, encrypt
 from ...db import Board, BoardRun, Pipeline
-from ..deps import CurrentUser, SessionDep, SettingsDep
+from ..deps import CurrentUser, SessionDep, SettingsDep, get_owned
 from ..schemas import BoardIn, BoardOut, BoardRunOut
 
 router = APIRouter(prefix="/boards", tags=["boards"])
 
 
 def _own_board(session: SessionDep, board_id: str, user_id: str) -> Board:
-    board = session.get(Board, board_id)
-    if board is None or board.owner_id != user_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "board not found")
-    return board
+    return get_owned(session, Board, board_id, user_id, not_found="board not found")
 
 
 def _apply_key(board: Board, rw_key: str, settings: SettingsDep) -> None:
@@ -99,9 +96,7 @@ def test_connection(board_id: str, user: CurrentUser, session: SessionDep, setti
 @router.post("/{board_id}/assign", response_model=BoardRunOut)
 def assign(board_id: str, pipeline_id: str, user: CurrentUser, session: SessionDep) -> BoardRunOut:
     board = _own_board(session, board_id, user.id)
-    pipeline = session.get(Pipeline, pipeline_id)
-    if pipeline is None or pipeline.owner_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "pipeline not found")
+    get_owned(session, Pipeline, pipeline_id, user.id, not_found="pipeline not found")
     run = session.get(BoardRun, board.id)
     if run is None:
         run = BoardRun(board_id=board.id, owner_id=user.id, pipeline_id=pipeline_id, state="stopped")
