@@ -4,6 +4,31 @@ Distilled record of delivered work, newest first. Open/in-flight work lives in t
 tracker (`claude-sync/coordination/artistaboard/progress.md`); plans of record are in
 `docs/plans/`.
 
+## Health, hardening & CI — repo-review backlog (complete)
+
+Sustainability pass from the repository review: security, ops, test determinism, dedup, and CI
+gates. Findings tracked in the cross-session tracker.
+
+- **#69** `schema-drift-dedupe` — drop the duplicate schema-drift workflow, keeping #67's api-drift gate.
+- **#68** `schema-drift-gate` — CI fails on a stale typed web client; resynced `schema.d.ts`.
+- **#67** `api-drift-gate` — CI regenerates the API client and fails if the committed `schema.d.ts` is stale.
+- **#65** `entry-idchurn` — `PUT /pipelines/{id}` updates entries **in place** by position, so entry ids survive a rename (a running board's `BoardRun.current_entry_id` no longer breaks).
+- **#64** `espn-dedup` — shared ESPN scoreboard envelope helpers; removes the parallel parsers across `worldcup` + `sport_{high,low}scores`.
+- **#63** `get-owned` — generic `get_owned()` ownership dependency dedups the boards/pipelines authz guard (scenes keep their world-readable-system check).
+- **#62** `http-retry` — shared httpx `get_json` helper with bounded retry + `raise_for_status`.
+- **#61** `scheduler-flaky` — deterministic scheduler test (fake scheduler, no wall-clock) + parallel-safe worker fixture (fixture-owned sends).
+- **#59** `migration-roundtrip` — alembic upgrade → downgrade → upgrade round-trip test (proves downgrades and re-runnability).
+- **#58** `compose-ops` — Docker: named SQLite state volume, non-root `app` user, `HEALTHCHECK`.
+- **#57** `preview-422-contract` — structured preview 422 `{message, missing_key}`; the client prefers the structured key (regex only a legacy fallback).
+- **#56** `secret-guard` — reject the insecure dev secret outside dev (`APP_ENV` guard); protects cookie signing + board-key encryption.
+- **#53** `simplify-pass` — dedup helpers, fix the `list_pipelines` N+1, drop dead code (quality-only).
+
+## Jobs management + rotation (complete)
+
+- **#66** `web-jobs-mgmt` — Jobs page gains a **Data sources** freshness section (`useDataSources`, 30s poll) + a **Poll now** button (`usePollNow` → `POST /data/poll`); `formatAge`/`isStale` helpers.
+- **#60** `datalayer-http-api` — `GET /data/sources` + `POST /data/poll`, thin wrappers over the poller/snapshot layer scoped to the current user's boards.
+- **#55** `rotation-primitive` — stateless clock-derived `rotate_index` (advances across paints with no persisted cursor) + a `single` display option on World Cup/sport + durable `BoardRun.last_frame_hash` dedup. (phase-3 part 1 of 2.)
+
 ## Web frontend — scene designer & UI (complete)
 
 React 19 + Vite + TS SPA in `web/`, served same-origin by FastAPI. Typed client generated from
