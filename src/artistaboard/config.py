@@ -5,10 +5,14 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from . import codes
+
+# The bundled placeholder secret. Fine for local dev; a real deployment must override
+# it (see the APP_ENV guard below) since it's public and signs cookies + encrypts keys.
+_DEV_SECRET = "dev-insecure-change-me"
 
 
 def _default_data_dir() -> Path:
@@ -26,7 +30,7 @@ def _default_data_dir() -> Path:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True)
 
     # Where scenes/ and fonts/ live. The Docker image sets VESTABOARD_DATA_DIR=/app.
     data_dir: Path = Field(default_factory=_default_data_dir, validation_alias="VESTABOARD_DATA_DIR")
@@ -45,8 +49,11 @@ class Settings(BaseSettings):
     # session_secret signs the auth cookie (override in any real deployment);
     # allow_signup gates registration after the first owner account exists.
     database_url: str = "sqlite:///./artistaboard.db"
-    session_secret: str = "dev-insecure-change-me"
+    session_secret: str = _DEV_SECRET
     allow_signup: bool = True
+    # Deployment environment. Anything other than "dev" (set APP_ENV=prod in a real
+    # deployment) rejects the insecure default secret at load — see the guard below.
+    app_env: str = Field(default="dev", validation_alias="APP_ENV")
     # Browser origins allowed to call the API with credentials. Defaults cover the
     # Vite dev server; production serves the SPA same-origin so no CORS is needed.
     # Accepts a JSON list or a comma-separated string via CORS_ORIGINS.
@@ -68,6 +75,18 @@ class Settings(BaseSettings):
     @property
     def encryption_secret(self) -> str:
         return self.app_encryption_key or self.session_secret
+
+    @model_validator(mode="after")
+    def _reject_dev_secret_outside_dev(self) -> Settings:
+        # Fail loud rather than silently signing cookies / encrypting board keys with a
+        # public constant. encryption_secret falls back to session_secret, so guarding
+        # the session secret covers both.
+        if self.app_env != "dev" and self.session_secret == _DEV_SECRET:
+            raise ValueError(
+                "SESSION_SECRET is the insecure dev default but APP_ENV is "
+                f"{self.app_env!r}; set a real SESSION_SECRET (and APP_ENCRYPTION_KEY)."
+            )
+        return self
 
     # Glyph font (a file <font>.json in fonts/). Bundled: nanofont3x4, bytesized3x4, 3x3pixels, 3by5.
     font: str = "bytesized3x4"
