@@ -35,3 +35,23 @@ record. Cross-session status: `claude-sync/coordination/artistaboard/progress.md
 - **Jobs contract:** a pollable job implements `poll()` (full dataset), `from_snapshot(payload)`
   (deserialize + select, mirroring `fetch()`'s shape), and its `Options`. `poll()`/`from_snapshot`
   are inverses of `jsonable()`.
+
+### Frontend (`web/`)
+
+- **Dev:** `cd web && npm install && npm run gen:api && npm run dev` (Vite `:5173`, proxies the API).
+  **Prod:** `npm --prefix web run build` → `web/dist`, which `serve` hosts same-origin. Pre-push:
+  `npm run typecheck && npm run lint && npm run build` (CI does *not* run these yet — see
+  `review-web-ci-tests`).
+- **Hash router** (`createHashRouter`) is intentional: the API owns top-level paths (`/scenes`,
+  `/boards`, `/pipelines`), so path-based client routes collide same-origin. Don't use `BrowserRouter`.
+- **Typed client is generated** from `/openapi.json` (`npm run gen:api`) — never hand-edit
+  `web/src/api/schema.d.ts`; regenerate after any backend API change.
+- **`POST /preview` is the only scene renderer.** Never reimplement binding/transform/color in JS.
+  `previewWithAutoSeed` seeds missing data keys by regex-parsing the 422 message (fragile — see
+  `review-422-error-contract`).
+- **zustand v5:** never return a fresh array/object from a `useSceneEditor` selector — a new
+  reference each call loops `useSyncExternalStore` → React #185. Select stable state, derive in the body.
+- **Board depictions stay dark in both themes** (`BoardGrid` + painter grid use fixed dark colors);
+  everything else themes via the inverted `neutral` scale under `.light`.
+- **Board R/W key is write-only** — never store or echo it client-side (only `has_key` + `rw_key_last4`
+  come back). The frontend's only backend edits are additive: `CORSMiddleware` + `StaticFiles`.

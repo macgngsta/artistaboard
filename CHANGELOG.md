@@ -4,6 +4,18 @@ Distilled record of delivered work, newest first. Open/in-flight work lives in t
 tracker (`claude-sync/coordination/artistaboard/progress.md`); plans of record are in
 `docs/plans/`.
 
+## Web frontend — scene designer & UI (complete)
+
+React 19 + Vite + TS SPA in `web/`, served same-origin by FastAPI. Typed client generated from
+`/openapi.json`; `POST /preview` is the sole scene renderer. Plan: `docs/plans/active/web-frontend.md`.
+
+- **#48** `region-dropdown` — Region editor header is a dropdown (badge + "Region X") to switch regions instead of targeting small grid badges.
+- **#47** `designer-color-layout` — Color-by-name dropdowns (swatch + word) for color sample vars and solid region colors; sample-data fields show which region uses each variable; relayout (region options under the painter, sample data under the preview).
+- **#45** `light-mode` — Light/dark theme toggle (persisted) by inverting the Tailwind `neutral` scale under `.light`; board depictions stay fixed-dark.
+- **#43** `jobs-catalogue` — Read-only Jobs page listing built-in jobs + their typed options from `GET /jobs`.
+- **#42** `preview-fix-presets` — `previewWithAutoSeed` seeds any missing data key the server reports and retries (fixes `cannot render scene: 'X'`); region-type presets + guidance.
+- **#40** `graphical-designer` — Graphical scene designer: click-drag paint regions on a 6×22 grid, add/remove regions, swatch color picker, always-on live preview.
+
 ## Data layer — paint reads the DB, not APIs (complete)
 
 Pollers fetch each referenced source's full dataset into Postgres on a schedule; the paint path

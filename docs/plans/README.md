@@ -8,6 +8,8 @@ The initiative: make "jobs" **configurable per board** (per-entry options, a per
 generic rotation, and composition). Default/integration branch is **`main`**.
 
 ## active
+- [`web-frontend.md`](active/web-frontend.md) — web UI; core app + graphical designer shipped,
+  jobs-management / display-options / nested-pipeline UI remain.
 - [`phase-3-rotation.md`](active/phase-3-rotation.md) — generic rotation primitive (single-vs-rotate,
   highlight-live) over the full snapshot. Next.
 - [`phase-4-nested-pipelines.md`](active/phase-4-nested-pipelines.md) — nested pipelines to compose
