@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "@/api/client";
+import { ApiError } from "@/api/errors";
 import type { PreviewOut, Scene, SceneIn, SceneDocument } from "@/api/types";
 
 const scenesKey = ["scenes"] as const;
@@ -58,4 +59,34 @@ export async function previewScene(
   sample_data: Record<string, unknown>,
 ): Promise<PreviewOut> {
   return unwrap(await api.POST("/preview", { body: { document, sample_data } }));
+}
+
+// The backend reports a missing data key as: cannot render scene: 'the_key'.
+const MISSING_KEY_RE = /cannot render scene: '([^']+)'/;
+
+// Render the live preview, auto-seeding any data key the server complains about
+// (glyph `fill` colors, rule params like a `field` or `team.score`) with a neutral
+// default so the board renders instead of 422-ing. This keeps the server as the
+// only renderer while covering variables the client can't always infer statically.
+export async function previewWithAutoSeed(
+  document: SceneDocument,
+  sampleData: Record<string, unknown>,
+): Promise<PreviewOut> {
+  const sample = { ...sampleData };
+  // Bounded: at most one seed per attempt, and there are only a handful of colors.
+  for (let attempt = 0; attempt < 16; attempt++) {
+    try {
+      return await previewScene(document, sample);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 422) {
+        const key = MISSING_KEY_RE.exec(e.message)?.[1];
+        if (key && !(key in sample)) {
+          sample[key] = 69; // white chip / harmless number for a threshold compare
+          continue;
+        }
+      }
+      throw e; // a real document error (bad grid, etc.) — surface it
+    }
+  }
+  return previewScene(document, sample);
 }
