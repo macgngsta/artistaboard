@@ -302,6 +302,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/data/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sources
+         * @description The distinct data series the user's running boards reference, each with its
+         *     latest-snapshot freshness (``never`` when nothing has been polled yet).
+         */
+        get: operations["list_sources_data_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Poll Now
+         * @description Poll every source the user's running boards reference, now. Per-source failures
+         *     are isolated. On SQLite/dev this is the only poll path; on Postgres it's a kick
+         *     alongside the scheduled daemon.
+         */
+        post: operations["poll_now_data_poll_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -381,6 +424,22 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * DataSourceOut
+         * @description One active snapshot series (source + fetch-defining key) with its freshness.
+         */
+        DataSourceOut: {
+            /** Source */
+            source: string;
+            /** Source Key */
+            source_key: string;
+            /** Last Fetched At */
+            last_fetched_at: string | null;
+            /** Age Seconds */
+            age_seconds: number | null;
+            /** Has Data */
+            has_data: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -476,6 +535,16 @@ export interface components {
             loop: boolean;
             /** Entries */
             entries: components["schemas"]["PipelineEntryOut"][];
+        };
+        /** PollResultOut */
+        PollResultOut: {
+            /** Polled */
+            polled: string[];
+            /** Failed */
+            failed: [
+                string,
+                string
+            ][];
         };
         /** PreviewIn */
         PreviewIn: {
@@ -1341,6 +1410,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobOut"][];
+                };
+            };
+        };
+    };
+    list_sources_data_sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSourceOut"][];
+                };
+            };
+        };
+    };
+    poll_now_data_poll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PollResultOut"];
                 };
             };
         };
