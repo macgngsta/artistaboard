@@ -21,10 +21,10 @@ from datetime import datetime, timedelta
 from functools import cached_property
 from typing import Any, ClassVar
 
-import httpx
 from pydantic import Field
 
 from .. import codes
+from ..http import get_json
 from ..render import leader_color
 from ..rotation import rotate_index
 from ..scene import Scene
@@ -210,8 +210,8 @@ class WorldCupJob(Job):
         now = datetime.now()
         start = (now - timedelta(days=1)).strftime("%Y%m%d")
         end = (now + timedelta(days=FETCH_WINDOW_DAYS)).strftime("%Y%m%d")
-        resp = httpx.get(SCOREBOARD_URL, params={"dates": f"{start}-{end}", "limit": 200}, timeout=15.0)
-        return resp.json().get("events", [])
+        data = get_json(SCOREBOARD_URL, params={"dates": f"{start}-{end}", "limit": 200})
+        return data.get("events", [])
 
     def fetch(self) -> Match | None:
         return self.select_match(parse_espn(self._scoreboard_events()), datetime.now())

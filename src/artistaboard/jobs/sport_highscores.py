@@ -15,9 +15,9 @@ from datetime import datetime
 from functools import cached_property
 from typing import Any, ClassVar
 
-import httpx
 from pydantic import Field
 
+from ..http import get_json
 from ..rotation import rotate_index
 from .base import Job, JobOptions, jsonable
 
@@ -157,7 +157,7 @@ class SportHighScoresJob(Job):
         return self.settings.sport_league
 
     def _scoreboard_payload(self) -> dict:
-        return httpx.get(SCOREBOARD_URL.format(league=self._league()), timeout=15.0).json()
+        return get_json(SCOREBOARD_URL.format(league=self._league()))
 
     def fetch(self) -> Game | None:
         return self.select_game(parse_games(self._scoreboard_payload()), datetime.now())
