@@ -12,3 +12,6 @@ orig/
 # Local web-app SQLite database
 artistaboard.db
 *.db
+
+# CI-generated OpenAPI dump (schema-drift check)
+openapi.json
