@@ -19,9 +19,10 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import cached_property
-from typing import Any, ClassVar
+from typing import Any
 
 from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .. import codes
 from ..http import get_json
@@ -142,17 +143,21 @@ def stage_lines(m: Match) -> tuple[str, str]:
     return "STAGE 2", _STAGE_LINE3.get(m.stage, m.stage.upper())
 
 
+class WorldCupConfig(BaseSettings):
+    """World Cup job config (env: WORLDCUP_*)."""
+
+    model_config = SettingsConfigDict(env_prefix="WORLDCUP_", env_file=".env", extra="ignore")
+    group: str = ""  # restrict to one group letter (e.g. "C")
+    rotate_seconds: int = 300  # cadence for rotating live matches
+    live_only: bool = False  # pin to in-play matches; show "NO MATCHES" when none are live
+    single: bool = False  # show one match (no rotation) instead of cycling the pool
+
+
 class WorldCupOptions(JobOptions):
     group: str | None = None  # restrict to one group letter (e.g. "C")
     rotate_seconds: int | None = Field(default=None, gt=0)  # cadence for rotating live matches
     live_only: bool | None = None  # pin to in-play matches; show "NO MATCHES" when none are live
     single: bool | None = None  # show one match (no rotation) instead of cycling the pool
-    override_map: ClassVar[dict[str, str]] = {
-        "group": "worldcup_group",
-        "rotate_seconds": "worldcup_rotate_seconds",
-        "live_only": "worldcup_live_only",
-        "single": "worldcup_single",
-    }
 
 
 class WorldCupJob(Job):
@@ -160,6 +165,7 @@ class WorldCupJob(Job):
     interval_seconds = 60
     scene_name = "worldcup"
     Options = WorldCupOptions
+    config_attr = "worldcup"
 
     @cached_property
     def _flags(self) -> dict[str, list[str]]:
@@ -171,14 +177,14 @@ class WorldCupJob(Job):
         return m.home in self._flags and m.away in self._flags
 
     def _pool(self, matches: list[Match], now: datetime) -> list[Match]:
-        group = self.settings.worldcup_group.strip().upper()
+        group = self.settings.worldcup.group.strip().upper()
         if group:
             matches = [m for m in matches if m.group.upper() == group]
         matches = [m for m in matches if self._known(m)]
         live = [m for m in matches if is_live(m, now)]
         if live:
             return live
-        if self.settings.worldcup_live_only:
+        if self.settings.worldcup.live_only:
             return []  # pinned to live games: nothing in play -> "NO MATCHES"
         upcoming = sorted((m for m in matches if m.kickoff and m.kickoff >= now), key=lambda m: m.kickoff)
         return upcoming[:1] or matches[:1]
@@ -187,12 +193,12 @@ class WorldCupJob(Job):
         pool = self._pool(matches, now)
         if not pool:
             return None
-        if self.settings.worldcup_single or len(pool) == 1:
+        if self.settings.worldcup.single or len(pool) == 1:
             return pool[0]
         # Cycle the live-match pool on the rotate cadence, purely from the clock so
         # rotation advances across paints without any per-paint state (each render
         # rebuilds the job from scratch).
-        return pool[rotate_index(len(pool), now, self.settings.worldcup_rotate_seconds)]
+        return pool[rotate_index(len(pool), now, self.settings.worldcup.rotate_seconds)]
 
     # -- job hooks -------------------------------------------------------------
     def _scoreboard_events(self) -> list[dict]:

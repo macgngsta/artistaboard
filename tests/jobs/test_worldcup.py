@@ -89,7 +89,7 @@ def test_select_rotates_live_pool_by_clock():
     a = _match(id="a", home="Scotland", away="Morocco", elapsed="20")
     b = _match(id="b", home="Spain", away="Japan", elapsed="20")
     job = _job_with_flags(flags)
-    job.settings.worldcup_rotate_seconds = 300
+    job.settings.worldcup.rotate_seconds = 300
 
     t0 = datetime(2026, 6, 28, 14, 0)
     # Within one 300s bucket the pick is stable...
@@ -104,7 +104,7 @@ def test_single_pins_first_of_pool():
     a = _match(id="a", home="Scotland", away="Morocco", elapsed="20")
     b = _match(id="b", home="Spain", away="Japan", elapsed="20")
     job = _job_with_flags(flags)
-    job.settings.worldcup_single = True
+    job.settings.worldcup.single = True
     # No rotation: the same match shows regardless of the clock.
     t0 = datetime(2026, 6, 28, 14, 0)
     assert job.select_match([a, b], t0).id == "a"

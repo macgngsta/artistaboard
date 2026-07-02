@@ -78,10 +78,10 @@ def test_muni_from_snapshot_filters_to_the_configured_line(tmp_path):
         ],
         "polled_at": datetime.now(UTC).isoformat(),
     }
-    job = MuniJob(settings.model_copy(update={"muni_line": "L"}))
+    job = MuniJob(settings.model_copy(update={"muni": settings.muni.model_copy(update={"line": "L"})}))
     selected = job.from_snapshot(full)
     assert selected.minutes == [3, 8]  # only L, soonest first — N is ignored
     assert selected.destination == "EMBARCADERO"
 
-    job_n = MuniJob(settings.model_copy(update={"muni_line": "N"}))
+    job_n = MuniJob(settings.model_copy(update={"muni": settings.muni.model_copy(update={"line": "N"})}))
     assert job_n.from_snapshot(full).minutes == [2]  # same snapshot, different line, no re-fetch

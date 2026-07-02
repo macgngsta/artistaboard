@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from artistaboard import codes
 from artistaboard.config import Settings
-from artistaboard.jobs.muni import MuniArrivals, MuniJob, parse_stop_monitoring
+from artistaboard.jobs.muni import MuniArrivals, MuniConfig, MuniJob, parse_stop_monitoring
 
 
 def _settings(**overrides):
@@ -108,9 +108,9 @@ def test_badge_color_follows_configured_line():
     arrivals = MuniArrivals(minutes=[8], destination="X", direction="IB")
     # The chosen line drives the badge colour: L→violet (default), T→red.
     assert codes.VIOLET in _region_codes(MuniJob(_settings()).render(arrivals), "A")
-    assert codes.RED in _region_codes(MuniJob(_settings(muni_line="T")).render(arrivals), "A")
-    # An explicit muni_color still overrides the line colour.
-    override = MuniJob(_settings(muni_line="T", muni_color="green")).render(arrivals)
+    assert codes.RED in _region_codes(MuniJob(_settings(muni=MuniConfig(line="T"))).render(arrivals), "A")
+    # An explicit muni color still overrides the line colour.
+    override = MuniJob(_settings(muni=MuniConfig(line="T", color="green"))).render(arrivals)
     assert codes.GREEN in _region_codes(override, "A")
 
 

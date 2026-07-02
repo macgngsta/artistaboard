@@ -67,7 +67,7 @@ def test_state_lookup_uses_data_file():
 
 def test_select_rotates_live_pool_by_clock():
     job = SportHighScoresJob(Settings(_env_file=None))
-    job.settings.sport_rotate_seconds = 300
+    job.settings.sport.rotate_seconds = 300
     a = _game(50, 48, gid="a")
     b = _game(60, 55, gid="b")
     t0 = datetime(2026, 6, 28, 19, 0)
@@ -78,7 +78,7 @@ def test_select_rotates_live_pool_by_clock():
 
 def test_single_pins_first_of_pool():
     job = SportHighScoresJob(Settings(_env_file=None))
-    job.settings.sport_single = True
+    job.settings.sport.single = True
     a = _game(50, 48, gid="a")
     b = _game(60, 55, gid="b")
     t0 = datetime(2026, 6, 28, 19, 0)

@@ -18,8 +18,20 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .base import Job, jsonable
+
+
+class SpotifyConfig(BaseSettings):
+    """Spotify job config / OAuth credentials (env: SPOTIFY_*)."""
+
+    model_config = SettingsConfigDict(env_prefix="SPOTIFY_", env_file=".env", extra="ignore")
+    client_id: str = ""
+    client_secret: str = ""
+    refresh_token: str = ""
+    redirect_uri: str = "http://127.0.0.1:8888/callback"
+
 
 AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
@@ -81,14 +93,15 @@ class SpotifyJob(Job):
     name = "spotify"
     interval_seconds = 20
     scene_name = "spotify"
+    config_attr = "spotify"
 
     def fetch(self) -> NowPlaying | None:
-        s = self.settings
-        if not (s.spotify_client_id and s.spotify_client_secret and s.spotify_refresh_token):
+        s = self.settings.spotify
+        if not (s.client_id and s.client_secret and s.refresh_token):
             raise RuntimeError(
                 "spotify job needs SPOTIFY_CLIENT_ID/SECRET/REFRESH_TOKEN (run `artistaboard spotify-auth`)"
             )
-        token = get_access_token(s.spotify_client_id, s.spotify_client_secret, s.spotify_refresh_token)
+        token = get_access_token(s.client_id, s.client_secret, s.refresh_token)
         resp = httpx.get(NOW_PLAYING_URL, headers={"Authorization": f"Bearer {token}"}, timeout=15.0)
         if resp.status_code == 204:  # nothing playing
             return None

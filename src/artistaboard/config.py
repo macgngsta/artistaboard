@@ -8,7 +8,11 @@ from pathlib import Path
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from . import codes
+from .jobs.clock import ClockConfig
+from .jobs.muni import MuniConfig
+from .jobs.sport_highscores import SportConfig
+from .jobs.spotify import SpotifyConfig
+from .jobs.worldcup import WorldCupConfig
 
 # The bundled placeholder secret. Fine for local dev; a real deployment must override
 # it (see the APP_ENV guard below) since it's public and signs cookies + encrypts keys.
@@ -91,51 +95,15 @@ class Settings(BaseSettings):
     # Glyph font (a file <font>.json in fonts/). Bundled: nanofont3x4, bytesized3x4, 3x3pixels, 3by5.
     font: str = "bytesized3x4"
 
-    # Accent colors: a code (69) or a name ("white"/"violet"). muni_color is
-    # optional — when unset, the badge uses the Muni line's own color.
-    clock_color: int = codes.WHITE
-    muni_color: int | None = None
-
-    @field_validator("clock_color", "muni_color", mode="before")
-    @classmethod
-    def _resolve_color(cls, v: object) -> object:
-        if v is None or v == "":
-            return None
-        return codes.resolve_color(v)  # type: ignore[arg-type]
-
-    # Small timezone label shown in the clock's corner (2 chars, e.g. PT/ET).
-    clock_tz_label: str = "PT"
-
-    # SF Muni (511.org). muni_line picks which route to show; the badge takes that
-    # line's colour (L→violet, T→red, …) unless muni_color overrides it.
-    fiveoneone_api_key: str = ""
-    muni_stop_code: str = ""
-    muni_line: str = "L"
-
-    # World Cup job: only show a specific group (e.g. "C") when set; rotate among
-    # live matches every N seconds (or immediately on a score change). When
-    # live_only is set, never fall back to an upcoming match — show nothing
-    # ("NO MATCHES") unless a game is currently in play.
-    worldcup_group: str = ""
-    worldcup_rotate_seconds: int = 300
-    worldcup_live_only: bool = False
-    worldcup_single: bool = False  # pin to one match instead of rotating the pool
-
-    # Sport high-scores job: ESPN sport/league path + rotation cadence.
-    sport_league: str = "basketball/nba"
-    sport_rotate_seconds: int = 300
-    sport_single: bool = False  # pin to one game instead of rotating the pool
-
-    # Sport low-scores job: ESPN sport/league path for sports whose scores stay
-    # to 1-2 digits (baseball, soccer, hockey). Shares sport_rotate_seconds.
-    sport_lowscore_league: str = "baseball/mlb"
-
-    # Spotify "now playing" job (OAuth). Create an app at developer.spotify.com,
-    # then run `artistaboard spotify-auth` to obtain the refresh token.
-    spotify_client_id: str = ""
-    spotify_client_secret: str = ""
-    spotify_refresh_token: str = ""
-    spotify_redirect_uri: str = "http://127.0.0.1:8888/callback"
+    # Per-job config lives in each job module (env: CLOCK_*, MUNI_*, WORLDCUP_*,
+    # SPORT_*, SPOTIFY_*). Each is its own BaseSettings, so adding a job widens its
+    # own config, not this global. Per-entry pipeline options override these at
+    # build_job time (see JobOptions.to_overrides + registry.build_job).
+    clock: ClockConfig = Field(default_factory=ClockConfig)
+    muni: MuniConfig = Field(default_factory=MuniConfig)
+    worldcup: WorldCupConfig = Field(default_factory=WorldCupConfig)
+    sport: SportConfig = Field(default_factory=SportConfig)
+    spotify: SpotifyConfig = Field(default_factory=SpotifyConfig)
 
     @property
     def web_dist_dir(self) -> Path:

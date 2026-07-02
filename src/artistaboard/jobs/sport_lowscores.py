@@ -28,10 +28,9 @@ from .sport_highscores import (
 class SportLowScoresOptions(JobOptions):
     league: str | None = None  # ESPN sport/league path (e.g. "baseball/mlb")
     rotate_seconds: int | None = Field(default=None, gt=0)
-    override_map: ClassVar[dict[str, str]] = {
-        "league": "sport_lowscore_league",
-        "rotate_seconds": "sport_rotate_seconds",
-    }
+    # The low job's user-facing "league" targets the shared SportConfig's
+    # lowscore_league field; rotate_seconds is shared, so it maps 1:1 (no entry).
+    override_map: ClassVar[dict[str, str]] = {"league": "lowscore_league"}
     fetch_defining: ClassVar[frozenset[str]] = frozenset({"league"})
 
 
@@ -41,7 +40,7 @@ class SportLowScoresJob(SportHighScoresJob):
     Options = SportLowScoresOptions
 
     def _league(self) -> str:
-        return self.settings.sport_lowscore_league
+        return self.settings.sport.lowscore_league
 
     def _status(self, g: Game) -> str:
         """Low-scoring sports count innings/periods, not quarters: prefer ESPN's

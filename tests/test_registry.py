@@ -18,26 +18,27 @@ def test_unknown_job_lists_known_names():
 
 def test_overrides_derive_per_call_settings_without_touching_base():
     base = Settings(_env_file=None)
-    job = build_job("world_cup", base, worldcup_group="C", worldcup_rotate_seconds=120)
-    assert job.settings.worldcup_group == "C"
-    assert job.settings.worldcup_rotate_seconds == 120
-    # the base settings object is untouched (derived via model_copy)
-    assert base.worldcup_group == ""
+    job = build_job("world_cup", base, group="C", rotate_seconds=120)
+    assert job.settings.worldcup.group == "C"
+    assert job.settings.worldcup.rotate_seconds == 120
+    # the base settings object (and its nested config) is untouched (model_copy)
+    assert base.worldcup.group == ""
 
 
-def test_options_overrides_maps_clean_names_to_settings_fields():
+def test_options_overrides_maps_clean_names_to_config_fields():
+    # For a job whose option names match its config fields, overrides pass through 1:1.
     assert options_overrides("world_cup", {"group": "C", "rotate_seconds": 120, "live_only": True, "single": True}) == {
-        "worldcup_group": "C",
-        "worldcup_rotate_seconds": 120,
-        "worldcup_live_only": True,
-        "worldcup_single": True,
+        "group": "C",
+        "rotate_seconds": 120,
+        "live_only": True,
+        "single": True,
     }
 
 
-def test_options_overrides_omits_unset_so_settings_stay_the_fallback():
+def test_options_overrides_omits_unset_so_config_stays_the_fallback():
     # An unset option must NOT appear as an override (else it would clobber a
     # deployment-configured default with the option's own default).
-    assert options_overrides("world_cup", {"group": "C"}) == {"worldcup_group": "C"}
+    assert options_overrides("world_cup", {"group": "C"}) == {"group": "C"}
     assert options_overrides("world_cup", {}) == {}
     assert options_overrides("world_cup", None) == {}
 
@@ -54,19 +55,20 @@ def test_options_overrides_enforces_field_constraints():
 
 def test_muni_color_option_resolves_name_to_a_code():
     ov = options_overrides("muni", {"line": "L", "color": "violet"})
-    assert ov["muni_line"] == "L"
-    assert isinstance(ov["muni_color"], int)  # name resolved to a Vestaboard code
+    assert ov["line"] == "L"
+    assert isinstance(ov["color"], int)  # name resolved to a Vestaboard code
 
 
-def test_sport_low_and_high_map_league_to_distinct_settings_fields():
-    assert options_overrides("sport_highscores", {"league": "basketball/nba"}) == {"sport_league": "basketball/nba"}
-    assert options_overrides("sport_lowscores", {"league": "baseball/mlb"}) == {"sport_lowscore_league": "baseball/mlb"}
+def test_sport_low_and_high_map_league_to_distinct_config_fields():
+    # Both jobs share SportConfig: high's league is `league`, low's is `lowscore_league`.
+    assert options_overrides("sport_highscores", {"league": "basketball/nba"}) == {"league": "basketball/nba"}
+    assert options_overrides("sport_lowscores", {"league": "baseball/mlb"}) == {"lowscore_league": "baseball/mlb"}
 
 
 def test_options_apply_through_build_job():
     base = Settings(_env_file=None)
     job = build_job("world_cup", base, **options_overrides("world_cup", {"group": "C"}))
-    assert job.settings.worldcup_group == "C"
+    assert job.settings.worldcup.group == "C"
 
 
 def test_job_without_options_has_empty_schema():
