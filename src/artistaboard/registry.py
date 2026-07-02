@@ -58,11 +58,18 @@ def build_job(name: str, settings: Settings, **overrides: object) -> Job:
 
     ``overrides`` derive a per-call :class:`Settings` (via ``model_copy``) so a
     caller can supply per-entry/per-board config — e.g. a pipeline running the
-    same job for two boards with different ``worldcup_group`` — without touching
-    the process-global ``get_settings()`` singleton. Values are taken as-is (no
-    re-validation), so pass already-typed values (see :func:`options_overrides`).
+    same job for two boards with different ``group`` — without touching the
+    process-global ``get_settings()`` singleton. They target the job's own nested
+    config (``job_type.config_attr``): a fresh copy of that sub-config is spliced
+    into a copied Settings, so the singleton and sibling jobs are untouched. Values
+    are taken as-is (no re-validation), so pass already-typed values (see
+    :func:`options_overrides`).
     """
     job_type = _job_type(name)
     if overrides:
-        settings = settings.model_copy(update=overrides)
+        attr = job_type.config_attr
+        if attr is None:
+            raise ValueError(f"job {name!r} takes no options but got overrides {sorted(overrides)}")
+        sub = getattr(settings, attr).model_copy(update=overrides)
+        settings = settings.model_copy(update={attr: sub})
     return job_type(settings)

@@ -18,7 +18,7 @@ def _game(away_score, home_score, state="post", away="Yankees", home="Red Sox", 
 
 
 def test_render_side_by_side_with_league_and_names():
-    job = SportLowScoresJob(Settings(_env_file=None, sport_lowscore_league="baseball/mlb"))
+    job = SportLowScoresJob(Settings(_env_file=None))
     scene = job.render(_game(4, 5))  # home (Red Sox) leads
     flat = [c for row in scene.to_characters() for c in row]
     # league label MLB and both team names rendered
@@ -33,7 +33,7 @@ def _region_colors(scene, label):
 
 
 def test_big_score_colored_by_state_and_leader():
-    job = SportLowScoresJob(Settings(_env_file=None, sport_lowscore_league="baseball/mlb"))
+    job = SportLowScoresJob(Settings(_env_file=None))
 
     # Live: the leader's big score is violet, the other white.
     live = job.render(_game(4, 5, state="in"))  # home leads
@@ -47,7 +47,7 @@ def test_big_score_colored_by_state_and_leader():
 
 
 def test_status_uses_league_phrasing_while_live():
-    job = SportLowScoresJob(Settings(_env_file=None, sport_lowscore_league="baseball/mlb"))
+    job = SportLowScoresJob(Settings(_env_file=None))
     scene = job.render(_game(1, 0, state="in", detail="Bot 8th"))
     c = scene.regions["C"]
     code_to_char = {v: k for k, v in codes.CHAR_TO_CODE.items()}

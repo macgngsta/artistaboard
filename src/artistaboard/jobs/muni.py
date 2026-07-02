@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import httpx
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .. import codes
 from .base import ColorOption, Job, JobOptions
@@ -101,15 +103,20 @@ def parse_stop_full(payload: dict, now: datetime) -> dict[str, Any]:
     return {"arrivals": arrivals, "polled_at": now.isoformat()}
 
 
+class MuniConfig(BaseSettings):
+    """Muni job config (env: MUNI_*, plus the shared FIVEONEONE_API_KEY)."""
+
+    model_config = SettingsConfigDict(env_prefix="MUNI_", env_file=".env", extra="ignore")
+    stop_code: str = ""  # 511 stop code to monitor
+    line: str = "L"  # route letter (J/K/L/M/N/T); picks the badge color
+    color: ColorOption = None  # override the line's own badge color
+    api_key: str = Field(default="", validation_alias="FIVEONEONE_API_KEY")
+
+
 class MuniOptions(JobOptions):
     stop_code: str | None = None  # 511 stop code to monitor
     line: str | None = None  # route letter (J/K/L/M/N/T); picks the badge color
     color: ColorOption = None  # override the line's own badge color
-    override_map: ClassVar[dict[str, str]] = {
-        "stop_code": "muni_stop_code",
-        "line": "muni_line",
-        "color": "muni_color",
-    }
     # The stop defines what to poll; line/color are display-only (one stop's snapshot
     # serves every line shown from it), so only the stop splits the snapshot series.
     fetch_defining: ClassVar[frozenset[str]] = frozenset({"stop_code"})
@@ -119,14 +126,15 @@ class MuniJob(Job):
     name = "muni"
     interval_seconds = 30
     Options = MuniOptions
+    config_attr = "muni"
     # The "transit" scene is operator-agnostic (badge + countdown + arrivals +
     # operator/direction/destination), so a future NYC-MTA job can reuse it by
     # binding the same envelope — the way the sport jobs share a layout shape.
     scene_name = "transit"
 
     def _stop_payload(self) -> dict:
-        key = self.settings.fiveoneone_api_key
-        stop = self.settings.muni_stop_code
+        key = self.settings.muni.api_key
+        stop = self.settings.muni.stop_code
         if not key or not stop:
             raise RuntimeError("muni job needs FIVEONEONE_API_KEY and MUNI_STOP_CODE")
         resp = httpx.get(
@@ -139,7 +147,7 @@ class MuniJob(Job):
         return httpx.Response(200, content=resp.content.decode("utf-8-sig").encode()).json()
 
     def fetch(self) -> MuniArrivals:
-        return parse_stop_monitoring(self._stop_payload(), datetime.now(UTC), line=self.settings.muni_line.upper())
+        return parse_stop_monitoring(self._stop_payload(), datetime.now(UTC), line=self.settings.muni.line.upper())
 
     def poll(self) -> dict[str, Any]:
         # All lines/directions at the stop; the render path filters to what's shown.
@@ -148,7 +156,7 @@ class MuniJob(Job):
     def from_snapshot(self, payload: dict[str, Any]) -> MuniArrivals:
         # Select this board's line from the full stop snapshot — same shape fetch()
         # returns (soonest first, capped), but with no re-fetch.
-        line = self.settings.muni_line.upper()
+        line = self.settings.muni.line.upper()
         rows = sorted(
             (a for a in payload.get("arrivals", []) if str(a.get("line", "")).upper() == line),
             key=lambda a: a["minutes"],
@@ -163,8 +171,8 @@ class MuniJob(Job):
         # The badge fills with the configured line's own colour (the user picks the
         # line; L→violet, T→red) unless muni_color overrides it; the scene carves
         # the route letter out of it (color: blank).
-        line = self.settings.muni_line.upper()
-        badge = self.settings.muni_color
+        line = self.settings.muni.line.upper()
+        badge = self.settings.muni.color
         if badge is None:
             badge = codes.resolve_color(MUNI_LINE_COLORS.get(line, DEFAULT_LINE_COLOR))
         env: dict[str, Any] = {

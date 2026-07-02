@@ -6,15 +6,19 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
-from typing import Annotated, Any, ClassVar
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 from .. import codes
 from ..client import VestaboardClient
-from ..config import Settings
 from ..render import render_scene
 from ..scene import Scene
+
+if TYPE_CHECKING:
+    # Imported for type hints only: config.py imports the job modules (for their nested
+    # config models), so a runtime import here would be a cycle.
+    from ..config import Settings
 
 
 def jsonable(value: Any) -> Any:
@@ -91,6 +95,10 @@ class Job(ABC):
     scene_name: str | None = None
     # The typed per-entry options this job accepts (empty by default: no knobs).
     Options: ClassVar[type[JobOptions]] = JobOptions
+    # The Settings attribute holding this job's nested config model (e.g. "worldcup"),
+    # so build_job applies per-entry option overrides to the right sub-config. None for
+    # jobs with no configurable knobs.
+    config_attr: ClassVar[str | None] = None
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings

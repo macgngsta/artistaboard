@@ -35,6 +35,13 @@ record. Cross-session status: `claude-sync/coordination/artistaboard/progress.md
 - **Jobs contract:** a pollable job implements `poll()` (full dataset), `from_snapshot(payload)`
   (deserialize + select, mirroring `fetch()`'s shape), and its `Options`. `poll()`/`from_snapshot`
   are inverses of `jsonable()`.
+- **Per-job config lives in the job module**, not `Settings`. Each job defines a nested
+  `BaseSettings` (env-prefixed, e.g. `WORLDCUP_*` → `WorldCupConfig`) exposed as a `Settings` field
+  (`settings.worldcup.group`); `Settings` holds only infra. Jobs read `self.settings.<attr>.<field>`
+  and set `config_attr` so `build_job` splices per-entry overrides into a copy of that sub-config
+  (singleton untouched). Env var names are unchanged. To break the `config → jobs → base → config`
+  cycle, `jobs/base.py` imports `Settings` only under `TYPE_CHECKING`. Add a new job's knobs to its
+  own config, never to the global.
 
 ### Frontend (`web/`)
 

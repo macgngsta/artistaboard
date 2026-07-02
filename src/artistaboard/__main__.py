@@ -122,15 +122,15 @@ def main(argv: list[str] | None = None) -> int:
 def _spotify_auth() -> int:
     from .jobs.spotify import authorize_url, exchange_code
 
-    s = get_settings()
-    if not (s.spotify_client_id and s.spotify_client_secret):
+    s = get_settings().spotify
+    if not (s.client_id and s.client_secret):
         print("Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env first.")
         return 1
     print("1) Open this URL and authorize:\n")
-    print("   " + authorize_url(s.spotify_client_id, s.spotify_redirect_uri))
-    print(f"\n2) You'll be redirected to {s.spotify_redirect_uri}?code=...")
+    print("   " + authorize_url(s.client_id, s.redirect_uri))
+    print(f"\n2) You'll be redirected to {s.redirect_uri}?code=...")
     code = input("3) Paste the `code` value here: ").strip()
-    token = exchange_code(code, s.spotify_client_id, s.spotify_client_secret, s.spotify_redirect_uri)
+    token = exchange_code(code, s.client_id, s.client_secret, s.redirect_uri)
     print(f"\nAdd this to your .env:\n\nSPOTIFY_REFRESH_TOKEN={token}")
     return 0
 

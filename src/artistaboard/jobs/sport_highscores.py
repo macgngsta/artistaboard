@@ -16,6 +16,7 @@ from functools import cached_property
 from typing import Any, ClassVar
 
 from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..http import get_json
 from ..rotation import rotate_index
@@ -106,15 +107,22 @@ def display_name(team: Team) -> str:
     return name if len(name) <= NAME_WIDTH else team.abbr.upper()
 
 
+class SportConfig(BaseSettings):
+    """Config shared by both sport jobs (env: SPORT_*). ``league``/``rotate_seconds``/
+    ``single`` drive high-scores; ``lowscore_league`` is the low-scores job's league
+    (both share the rotation cadence)."""
+
+    model_config = SettingsConfigDict(env_prefix="SPORT_", env_file=".env", extra="ignore")
+    league: str = "basketball/nba"
+    rotate_seconds: int = 300
+    single: bool = False
+    lowscore_league: str = "baseball/mlb"
+
+
 class SportHighScoresOptions(JobOptions):
     league: str | None = None  # ESPN sport/league path (e.g. "basketball/nba")
     rotate_seconds: int | None = Field(default=None, gt=0)
     single: bool | None = None  # show one game (no rotation) instead of cycling the pool
-    override_map: ClassVar[dict[str, str]] = {
-        "league": "sport_league",
-        "rotate_seconds": "sport_rotate_seconds",
-        "single": "sport_single",
-    }
     fetch_defining: ClassVar[frozenset[str]] = frozenset({"league"})  # each league is its own series
 
 
@@ -123,11 +131,12 @@ class SportHighScoresJob(Job):
     interval_seconds = 60
     scene_name = "sport_highscores"
     Options = SportHighScoresOptions
+    config_attr = "sport"
 
     @cached_property
     def _states(self) -> dict[str, str]:
         data = json.loads(self.settings.team_states_path.read_text())
-        return data.get(self.settings.sport_league, {})
+        return data.get(self.settings.sport.league, {})
 
     def _state(self, abbr: str) -> str:
         return self._states.get(abbr, abbr[:2])
@@ -140,14 +149,14 @@ class SportHighScoresJob(Job):
         pool = self._pool(games)
         if not pool:
             return None
-        if self.settings.sport_single or len(pool) == 1:
+        if self.settings.sport.single or len(pool) == 1:
             return pool[0]
         # Cycle the live-game pool on the rotate cadence, purely from the clock so
         # rotation advances across paints without any per-paint state.
-        return pool[rotate_index(len(pool), now, self.settings.sport_rotate_seconds)]
+        return pool[rotate_index(len(pool), now, self.settings.sport.rotate_seconds)]
 
     def _league(self) -> str:
-        return self.settings.sport_league
+        return self.settings.sport.league
 
     def _scoreboard_payload(self) -> dict:
         return get_json(SCOREBOARD_URL.format(league=self._league()))
