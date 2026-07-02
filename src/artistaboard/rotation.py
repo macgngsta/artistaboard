@@ -32,6 +32,9 @@ class RotationState:
     last_switch: datetime | None = None
     current_id: str | None = None
     signals: dict[str, Hashable] = field(default_factory=dict)
+    # Nested-pipeline substates, keyed by the parent entry id whose sub-pipeline they
+    # track, so one BoardRun.rotation_state carries the whole tree.
+    children: dict[str, RotationState] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -39,6 +42,7 @@ class RotationState:
             "last_switch": self.last_switch.isoformat() if self.last_switch else None,
             "current_id": self.current_id,
             "signals": dict(self.signals),
+            "children": {k: v.to_dict() for k, v in self.children.items()},
         }
 
     @classmethod
@@ -49,6 +53,7 @@ class RotationState:
             last_switch=datetime.fromisoformat(raw) if raw else None,
             current_id=data.get("current_id"),
             signals=dict(data.get("signals") or {}),
+            children={k: cls.from_dict(v) for k, v in (data.get("children") or {}).items()},
         )
 
 

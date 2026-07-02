@@ -476,6 +476,8 @@ export interface components {
             job_name?: string | null;
             /** Scene Id */
             scene_id?: string | null;
+            /** Sub Pipeline Id */
+            sub_pipeline_id?: string | null;
             /** Data Source */
             data_source?: string | null;
             /** Options */
@@ -502,6 +504,8 @@ export interface components {
             job_name: string | null;
             /** Scene Id */
             scene_id: string | null;
+            /** Sub Pipeline Id */
+            sub_pipeline_id: string | null;
             /** Data Source */
             data_source: string | null;
             /** Options */

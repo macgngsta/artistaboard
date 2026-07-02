@@ -91,10 +91,14 @@ class PipelineEntry(SQLModel, table=True):
     position: int = 0
     duration_seconds: int = 60  # how long this entry holds the board
     refresh_seconds: int | None = None  # re-render cadence within the window (live data)
-    # An entry renders either a built-in job (job_name) or a stored scene (scene_id).
-    source_type: str = "job"  # job / scene
+    # An entry renders a built-in job (job_name), a stored scene (scene_id), or a
+    # nested pipeline (sub_pipeline_id).
+    source_type: str = "job"  # job / scene / pipeline
     job_name: str | None = None
     scene_id: str | None = Field(default=None, foreign_key="scenes.id")
+    # For pipeline entries: the pipeline to embed. The parent's duration_seconds
+    # governs its window; the sub-pipeline loops through its own entries within it.
+    sub_pipeline_id: str | None = Field(default=None, foreign_key="pipelines.id")
     # For scene entries: a job whose bind() envelope feeds the scene's variables
     # (auto-bound by name). None -> the scene renders static (fallbacks only).
     data_source: str | None = None

@@ -109,9 +109,10 @@ class BoardOut(BaseModel):
 
 
 class PipelineEntryIn(BaseModel):
-    source_type: str = "job"  # job / scene
+    source_type: str = "job"  # job / scene / pipeline
     job_name: str | None = None
     scene_id: str | None = None
+    sub_pipeline_id: str | None = None  # pipeline entries: the pipeline to embed
     data_source: str | None = None  # scene entries: a job feeding the scene's data
     # Typed job options, validated against the driving job's schema (see /jobs).
     options: dict[str, Any] = Field(default_factory=dict)
@@ -125,6 +126,7 @@ class PipelineEntryOut(BaseModel):
     source_type: str
     job_name: str | None
     scene_id: str | None
+    sub_pipeline_id: str | None
     data_source: str | None
     options: dict[str, Any]
     duration_seconds: int
