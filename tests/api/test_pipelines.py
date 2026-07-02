@@ -165,6 +165,71 @@ def test_update_replaces_entries(auth_client):
     assert [e["job_name"] for e in upd.json()["entries"]] == ["spotify"]
 
 
+def _new_pipeline(auth_client, name="p", entries=None):
+    r = auth_client.post("/pipelines", json={"name": name, "entries": entries or []})
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def test_pipeline_entry_embeds_another_pipeline(auth_client):
+    child = _new_pipeline(auth_client, "child")
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "parent",
+            "entries": [{"source_type": "pipeline", "sub_pipeline_id": child, "duration_seconds": 60}],
+        },
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["entries"][0]["sub_pipeline_id"] == child
+
+
+def test_pipeline_entry_requires_sub_pipeline_id(auth_client):
+    r = auth_client.post(
+        "/pipelines",
+        json={"name": "p", "entries": [{"source_type": "pipeline", "duration_seconds": 60}]},
+    )
+    assert r.status_code == 422
+
+
+def test_pipeline_entry_unknown_sub_pipeline_is_422(auth_client):
+    r = auth_client.post(
+        "/pipelines",
+        json={
+            "name": "p",
+            "entries": [{"source_type": "pipeline", "sub_pipeline_id": "missing", "duration_seconds": 60}],
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_pipeline_self_reference_is_rejected(auth_client):
+    pid = _new_pipeline(auth_client, "p")
+    r = auth_client.put(
+        f"/pipelines/{pid}",
+        json={"name": "p", "entries": [{"source_type": "pipeline", "sub_pipeline_id": pid, "duration_seconds": 60}]},
+    )
+    assert r.status_code == 422
+    assert "cycle" in r.text.lower()
+
+
+def test_pipeline_two_node_cycle_is_rejected(auth_client):
+    child = _new_pipeline(auth_client, "child")
+    parent = _new_pipeline(
+        auth_client, "parent", [{"source_type": "pipeline", "sub_pipeline_id": child, "duration_seconds": 60}]
+    )
+    # parent -> child exists; child -> parent would close the loop
+    r = auth_client.put(
+        f"/pipelines/{child}",
+        json={
+            "name": "child",
+            "entries": [{"source_type": "pipeline", "sub_pipeline_id": parent, "duration_seconds": 60}],
+        },
+    )
+    assert r.status_code == 422
+    assert "cycle" in r.text.lower()
+
+
 def test_update_preserves_entry_ids_when_entries_unchanged(auth_client):
     entries = [
         {"source_type": "job", "job_name": "clock", "duration_seconds": 30},

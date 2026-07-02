@@ -24,7 +24,26 @@ def _validate_options(job: str, options: dict) -> None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid options for {job!r}: {exc}") from exc
 
 
-def _validate_entry(entry: PipelineEntryIn, user_id: str, session: SessionDep) -> None:
+def _sub_pipeline_ids(session: SessionDep, pipeline_id: str) -> list[str]:
+    rows = session.exec(
+        select(PipelineEntry).where(PipelineEntry.pipeline_id == pipeline_id, PipelineEntry.source_type == "pipeline")
+    ).all()
+    return [r.sub_pipeline_id for r in rows if r.sub_pipeline_id]
+
+
+def _reaches(session: SessionDep, start_id: str, target_id: str, seen: set[str]) -> bool:
+    """Whether ``target_id`` is reachable from ``start_id`` by following committed
+    sub-pipeline edges — used to reject an entry ``pipeline_id -> sub`` when ``sub``
+    can already reach ``pipeline_id`` (a cycle)."""
+    if start_id == target_id:
+        return True
+    if start_id in seen:
+        return False
+    seen.add(start_id)
+    return any(_reaches(session, sid, target_id, seen) for sid in _sub_pipeline_ids(session, start_id))
+
+
+def _validate_entry(entry: PipelineEntryIn, pipeline_id: str, user_id: str, session: SessionDep) -> None:
     if entry.source_type == "job":
         if entry.job_name not in JOB_TYPES:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown job {entry.job_name!r}")
@@ -39,6 +58,14 @@ def _validate_entry(entry: PipelineEntryIn, user_id: str, session: SessionDep) -
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "options require a data_source job to apply to")
         if entry.data_source is not None:
             _validate_options(entry.data_source, entry.options)
+    elif entry.source_type == "pipeline":
+        if not entry.sub_pipeline_id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "pipeline entry requires a sub_pipeline_id")
+        sub = session.get(Pipeline, entry.sub_pipeline_id)
+        if sub is None or sub.owner_id != user_id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "pipeline entry references an unknown pipeline")
+        if _reaches(session, entry.sub_pipeline_id, pipeline_id, set()):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "pipeline entry would create a cycle")
     else:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"bad source_type {entry.source_type!r}")
 
@@ -64,16 +91,20 @@ def _replace_entries(session: SessionDep, pipeline_id: str, entries: list[Pipeli
     # survive edits that don't shrink the list. A running board's BoardRun points at
     # an entry id, so churning ids on every PUT (e.g. a rename) would silently
     # disrupt its rotation.
+    # Validate the whole set first, against the committed graph, so cycle detection
+    # isn't confused by half-written rows from an autoflush mid-loop.
+    for entry in entries:
+        _validate_entry(entry, pipeline_id, user_id, session)
     existing = session.exec(
         select(PipelineEntry).where(PipelineEntry.pipeline_id == pipeline_id).order_by(PipelineEntry.position)
     ).all()
     for position, entry in enumerate(entries):
-        _validate_entry(entry, user_id, session)
         row = existing[position] if position < len(existing) else PipelineEntry(pipeline_id=pipeline_id)
         row.position = position
         row.source_type = entry.source_type
         row.job_name = entry.job_name
         row.scene_id = entry.scene_id
+        row.sub_pipeline_id = entry.sub_pipeline_id
         row.data_source = entry.data_source
         row.options = entry.options
         row.duration_seconds = entry.duration_seconds

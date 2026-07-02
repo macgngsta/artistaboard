@@ -1,12 +1,12 @@
 """Pipeline runner: which entry shows on a board now, and how to render it.
 
 A pipeline is an ordered list of entries, each held for ``duration_seconds`` then
-advanced round-robin (looping). The "which entry now" decision reuses the shared
-``rotation.select`` with a constant signal (pure time-based rotation) and the
-*current* entry's duration as the dwell — so each entry can hold for a different
-length. ``Pipeline`` is pure given its ``RotationState`` (freeze ``now`` in tests);
-``render_entry`` turns the chosen entry into a Scene by reusing the existing job
-build path or the stored-scene render path.
+advanced round-robin (looping). Selection is pure time stepping off the persisted
+``RotationState`` (each entry can hold for a different length; freeze ``now`` in
+tests). An entry can also embed another pipeline (``source_type="pipeline"``):
+``active`` descends into the sub-pipeline's current leaf, and the tree of substates
+persists in one ``RotationState`` (see ``children``). ``render_entry`` turns a leaf
+entry (job/scene) into a Scene via the existing job-build or stored-scene path.
 """
 
 from __future__ import annotations
@@ -28,25 +28,41 @@ from .render import render_scene
 from .rotation import RotationState
 from .scene import Scene
 
+# Defence-in-depth against a nesting cycle that slipped past write-time validation
+# (a user can create A->B then edit B->A across two PUTs).
+_MAX_PIPELINE_DEPTH = 8
+
 
 @dataclass
 class RuntimeEntry:
     id: str
     duration_seconds: int
     refresh_seconds: int | None
-    source_type: str  # job / scene
+    source_type: str  # job / scene / pipeline
     job_name: str | None
     scene_id: str | None
     data_source: str | None = None
     options: dict[str, Any] = field(default_factory=dict)
+    sub_pipeline_id: str | None = None
 
 
 class Pipeline:
-    def __init__(self, pipeline_id: str, entries: list[RuntimeEntry], loop: bool, state: RotationState) -> None:
+    def __init__(
+        self,
+        pipeline_id: str,
+        entries: list[RuntimeEntry],
+        loop: bool,
+        state: RotationState,
+        children: dict[str, Pipeline] | None = None,
+    ) -> None:
         self.id = pipeline_id
         self.entries = entries
         self.loop = loop
         self.state = state
+        # Built sub-pipelines, keyed by the pipeline entry id that embeds them. Each
+        # child's state is `self.state.children[entry_id]` (shared), so mutating a
+        # child during active() flows into this pipeline's persisted state tree.
+        self.children = children or {}
         self.completed = False
 
     def _is_current(self) -> bool:
@@ -59,12 +75,9 @@ class Pipeline:
         self.state.current_id = entry.id
         return entry
 
-    def active(self, now: datetime) -> RuntimeEntry | None:
-        """The entry to show at ``now``, or ``None`` when a non-looping pipeline has
-        finished its last entry (``self.completed`` is then set; the caller stops the
-        run and leaves the last frame up). Pipelines step purely on time — no
-        preemption — so this is explicit and loop-aware rather than the job selector.
-        Mutates ``self.state``; the pool must be non-empty."""
+    def _select(self, now: datetime) -> RuntimeEntry | None:
+        """Clock-step to the entry whose window covers ``now`` (may be a pipeline
+        entry), or ``None`` when a non-looping pipeline has finished its last entry."""
         if not self._is_current():
             return self._switch_to(0, now)  # fresh start (or a stale resume) -> entry 0
         if self.seconds_left(self.entries[self.state.index], now) > 0:
@@ -77,6 +90,20 @@ class Pipeline:
             nxt = 0
         return self._switch_to(nxt, now)
 
+    def active(self, now: datetime) -> RuntimeEntry | None:
+        """The leaf entry (job/scene) to show at ``now``. Descends a pipeline entry
+        into its sub-pipeline's current leaf; the parent's duration still governs when
+        it advances off that entry (nested pipelines loop within the window). Returns
+        ``None`` when a non-looping pipeline has finished (``self.completed`` is set;
+        the caller stops the run). Mutates ``self.state``; the pool must be non-empty."""
+        entry = self._select(now)
+        if entry is None or entry.source_type != "pipeline":
+            return entry
+        child = self.children.get(entry.id)
+        if child is None or not child.entries:
+            return None  # empty/broken sub-pipeline; validation rejects these on write
+        return child.active(now)
+
     def seconds_left(self, entry: RuntimeEntry, now: datetime) -> float:
         """How long until the current entry's window elapses (0 if already due)."""
         if self.state.last_switch is None:
@@ -86,8 +113,21 @@ class Pipeline:
 
 
 def load_pipeline(session: Session, pipeline_id: str, rotation_state: dict | None) -> Pipeline:
+    # A fresh run starts at index -1 so the first tick advances to entry 0.
+    root = RotationState.from_dict(rotation_state) if rotation_state else RotationState(index=-1)
+    return _build_pipeline(session, pipeline_id, root, seen=frozenset(), depth=0)
+
+
+def _build_pipeline(
+    session: Session, pipeline_id: str, state: RotationState, *, seen: frozenset[str], depth: int
+) -> Pipeline:
+    if pipeline_id in seen or depth > _MAX_PIPELINE_DEPTH:
+        return Pipeline(pipeline_id, [], loop=True, state=state)  # break a cycle defensively
+    seen = seen | {pipeline_id}
     pipeline = session.get(PipelineRow, pipeline_id)
-    loop = pipeline.loop if pipeline is not None else True
+    # Nested sub-pipelines loop within their parent's window; only a top-level pipeline
+    # honours its own loop flag.
+    loop = True if depth > 0 else (pipeline.loop if pipeline is not None else True)
     rows = session.exec(select(EntryRow).where(EntryRow.pipeline_id == pipeline_id).order_by(EntryRow.position)).all()
     entries = [
         RuntimeEntry(
@@ -99,12 +139,21 @@ def load_pipeline(session: Session, pipeline_id: str, rotation_state: dict | Non
             scene_id=r.scene_id,
             data_source=r.data_source,
             options=r.options or {},
+            sub_pipeline_id=r.sub_pipeline_id,
         )
         for r in rows
     ]
-    # A fresh run starts at index -1 so the first tick advances to entry 0.
-    state = RotationState.from_dict(rotation_state) if rotation_state else RotationState(index=-1)
-    return Pipeline(pipeline_id, entries, loop, state)
+    children: dict[str, Pipeline] = {}
+    for entry in entries:
+        if entry.source_type == "pipeline" and entry.sub_pipeline_id:
+            child_state = state.children.get(entry.id)
+            if child_state is None:
+                child_state = RotationState(index=-1)
+                state.children[entry.id] = child_state
+            children[entry.id] = _build_pipeline(
+                session, entry.sub_pipeline_id, child_state, seen=seen, depth=depth + 1
+            )
+    return Pipeline(pipeline_id, entries, loop, state, children)
 
 
 def _source_data(session: Session, job: Job, source: str, options: dict) -> object:
