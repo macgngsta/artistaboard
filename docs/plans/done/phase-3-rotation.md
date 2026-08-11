@@ -1,6 +1,6 @@
 # Phase 3 — generic rotation primitive
 
-**Status:** active (not started).
+**Status:** done (shipped as #55).
 **Goal:** extract "show a single item vs rotate a set, and highlight the live/priority one" out of
 individual jobs into a **reusable primitive applied over the full snapshot**, so any entry/group
 can be configured to rotate — unifying World Cup's internal rotation with Muni multi-line/direction.
