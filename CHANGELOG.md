@@ -4,6 +4,19 @@ Distilled record of delivered work, newest first. Open/in-flight work lives in t
 tracker (`claude-sync/coordination/artistaboard/progress.md`); plans of record are in
 `docs/plans/`.
 
+## Nested pipelines & config decomposition (complete)
+
+- **#74** `settings-decompose` — split the `Settings` god object into per-job nested `BaseSettings`
+  models (`WorldCupConfig`, `MuniConfig`, …); `Settings` now holds only infra. Env var names unchanged.
+- **#73** `nested-pipelines` — a pipeline entry can embed another pipeline, composing groups
+  (e.g. "Muni group + World Cup group + clock"). Delivers `phase-4-nested-pipelines`.
+
+## CI & tooling (complete)
+
+- **#72** `api-drift-uv-lock` — stop the backend in the api-drift job to fix a uv cache-lock hang.
+- **#71** `pyright-gate` — add a pyright type-check CI gate (basic, tuned for ORM noise).
+- **#70** `changelog-graduate` — graduate delivered PRs (#53–#69) into this CHANGELOG.
+
 ## Health, hardening & CI — repo-review backlog (complete)
 
 Sustainability pass from the repository review: security, ops, test determinism, dedup, and CI

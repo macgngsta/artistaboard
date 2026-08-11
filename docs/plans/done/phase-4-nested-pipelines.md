@@ -1,6 +1,6 @@
 # Phase 4 — nested pipelines (compose groups)
 
-**Status:** active (not started, after Phase 3).
+**Status:** done (shipped as #73).
 **Goal:** string groups together — "Muni group + World Cup group + clock" — by letting a pipeline
 entry point at another pipeline.
 

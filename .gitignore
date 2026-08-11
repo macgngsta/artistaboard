@@ -9,6 +9,9 @@ build/
 *.egg-info/
 .DS_Store
 orig/
+# Local env overrides — keep the tracked .env.example
+.env.*
+!.env.example
 # Local web-app SQLite database
 artistaboard.db
 *.db
