@@ -5,6 +5,25 @@
 python = "3.13"
 uv = "latest"
 
+[tasks.ci]
+# Reproduce GitHub CI locally: macgngsta/* Actions never run (billing), so local-ci.sh runs this on a
+# PR head and posts the `local-ci` status ci-watch's merge gate reads. Mirrors ci.yml (ruff, pyright,
+# pytest) and web.yml's `web` job (node typecheck/lint/test/build). ci.yml auto-fixes-and-commits
+# formatting; from a throwaway worktree we can't push, so we assert cleanliness with `ruff format
+# --check` instead. Deliberately NOT here (see PR body): web.yml's `api-drift` job (needs a live
+# backend + client regen), docker tasks and deploy.
+description = "Run CI locally (ci.yml + web.yml web job): uv sync, ruff, pyright, pytest, web npm"
+# node only for this task (web.yml uses node 22); the repo's tool set stays python-only.
+tools = { node = "22" }
+run = [
+    "uv sync --locked",
+    "uv run ruff check .",
+    "uv run ruff format --check .",
+    "uv run pyright",
+    "uv run pytest -q",
+    "cd web && npm ci && npm run typecheck && npm run lint && npm run test && npm run build",
+]
+
 [tasks.install]
 description = "Install dependencies (incl. dev) into .venv"
 run = "uv sync --dev"
