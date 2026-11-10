@@ -4,6 +4,12 @@ Distilled record of delivered work, newest first. Open/in-flight work lives in t
 tracker (`claude-sync/coordination/artistaboard/progress.md`); plans of record are in
 `docs/plans/`.
 
+## Local CI for the merge gate (complete)
+
+- **#76** `local-ci-mise` — add a `ci` mise task mirroring `ci.yml` + `web.yml`'s `web` job (uv sync,
+  ruff, pyright, pytest, web typecheck/lint/test/build) so `claude-sync`'s `local-ci.sh` runs it on a
+  PR head and posts the `local-ci` status ci-watch's merge gate reads (macgngsta/* Actions never run).
+
 ## Nested pipelines & config decomposition (complete)
 
 - **#74** `settings-decompose` — split the `Settings` god object into per-job nested `BaseSettings`
